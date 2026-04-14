@@ -5,8 +5,9 @@ import {
   createErrorResponse,
 } from "@webstudio-is/trpc-interface/index.server";
 import { workspace as workspaceApi } from "@webstudio-is/project/index.server";
-import { getPlanInfo } from "~/shared/db/plan-features.server";
 import { roles } from "@webstudio-is/trpc-interface/authorize";
+import { getPlanInfo, getPaidSeats } from "@webstudio-is/plans/index.server";
+import { defaultPlanFeatures } from "@webstudio-is/plans";
 import env from "~/env/env.server";
 
 const Name = z.string().min(2).max(100);
@@ -63,10 +64,15 @@ const updateSeats = async ({
  * Syncs the Stripe seat quantity for the owner of a given workspace.
  * Called after adding or removing members.
  * Throws on payment worker errors so the caller can decide whether to soft-fail.
+ *
+ * @param countDelta - adjustment to the current member count before syncing.
+ *   Pass +1 when a member is about to be added (pre-charge) so that billing
+ *   is checked before the DB change is committed.
  */
 const syncOwnerSeats = async (
   workspaceId: string,
-  ctx: Parameters<typeof workspaceApi.countAllMembers>[1]
+  ctx: Parameters<typeof workspaceApi.countAllMembers>[1],
+  countDelta = 0
 ) => {
   const workspaceResult = await ctx.postgrest.client
     .from("Workspace")
@@ -80,8 +86,11 @@ const syncOwnerSeats = async (
   }
 
   const ownerId = workspaceResult.data.userId;
-  const planInfo = await getPlanInfo(ownerId, ctx.postgrest);
-  const { planFeatures, purchases } = planInfo;
+  const planResults = await getPlanInfo([ownerId], ctx);
+  const { planFeatures, purchases } = planResults.get(ownerId) ?? {
+    planFeatures: defaultPlanFeatures,
+    purchases: [],
+  };
 
   const subscription = purchases.find((p) => p.subscriptionId !== undefined);
   if (subscription?.subscriptionId === undefined) {
@@ -93,7 +102,7 @@ const syncOwnerSeats = async (
   const result = await updateSeats({
     userId: ownerId,
     subscriptionId: subscription.subscriptionId,
-    newQuantity: memberCount,
+    newQuantity: memberCount + countDelta,
     minSeats: planFeatures.minSeats,
     maxSeats: planFeatures.maxSeatsPerWorkspace,
   });
@@ -178,6 +187,16 @@ export const workspaceRouter = router({
           throw new Error("Upgrade your plan to invite members to workspaces.");
         }
 
+        const isDevEnvironment = env.DEPLOYMENT_ENVIRONMENT === "development";
+        const hasPaymentWorker =
+          env.PAYMENT_WORKER_URL && env.PAYMENT_WORKER_TOKEN;
+
+        if (!hasPaymentWorker && !isDevEnvironment) {
+          throw new Error(
+            "Adding workspace members requires a configured payment provider."
+          );
+        }
+
         const { maxSeatsPerWorkspace } = ctx.planFeatures;
         if (maxSeatsPerWorkspace > 0) {
           const [membersResult, pendingResult] = await Promise.all([
@@ -210,16 +229,54 @@ export const workspaceRouter = router({
           }
         }
 
-        const { notificationId } = await workspaceApi.addMember(input, ctx);
+        // Pre-charge the seat before adding the member (Figma model).
+        // We validate user existence first so that a missing account never
+        // triggers a billing change.
+        // When the payment worker is configured, a billing failure aborts the
+        // invite so the member is never added. When the worker URL is not set
+        // (self-hosted / dev), syncOwnerSeats returns early and this is a no-op.
 
-        // Charge the seat at invite time (Figma model).
-        // Soft-fail: the invite is already created, billing is best-effort.
-        await syncOwnerSeats(input.workspaceId, ctx).catch((error) => {
-          console.error(
-            "[payment-worker] Failed to bill seat on invite:",
-            error
+        // Validate the invitee exists and is not already a member before
+        // touching billing. This mirrors the checks in workspaceApi.addMember
+        // so that we never charge for a doomed invite.
+        const inviteeResult = await ctx.postgrest.client
+          .from("User")
+          .select("id")
+          .eq("email", input.email)
+          .maybeSingle();
+        if (inviteeResult.error) {
+          throw inviteeResult.error;
+        }
+        if (inviteeResult.data === null) {
+          throw new Error(
+            "No Webstudio account found. The user needs to sign up first."
           );
-        });
+        }
+        const existingMemberResult = await ctx.postgrest.client
+          .from("WorkspaceMember")
+          .select("userId")
+          .eq("workspaceId", input.workspaceId)
+          .eq("userId", inviteeResult.data.id)
+          .is("removedAt", null)
+          .maybeSingle();
+        if (existingMemberResult.error) {
+          throw existingMemberResult.error;
+        }
+        if (existingMemberResult.data !== null) {
+          throw new Error("Already a member of this workspace.");
+        }
+
+        try {
+          await syncOwnerSeats(input.workspaceId, ctx, +1);
+        } catch (error) {
+          const technical =
+            error instanceof Error ? error.message : String(error);
+          throw new Error(
+            `Unable to update billing. Please try again or contact support. (${technical})`
+          );
+        }
+
+        const { notificationId } = await workspaceApi.addMember(input, ctx);
 
         return { success: true as const, notificationId };
       } catch (error) {
@@ -274,7 +331,16 @@ export const workspaceRouter = router({
     .query(async ({ input, ctx }) => {
       try {
         const members = await workspaceApi.listMembers(input, ctx);
-        return { success: true as const, data: members };
+        const paidSeats = await getPaidSeats(members.owner.userId, ctx);
+        return {
+          success: true as const,
+          data: {
+            ...members,
+            // Falls back to minSeats (seats included in the plan) when no
+            // subscription event exists yet (free plan, AppSumo, etc.).
+            maxSeats: paidSeats ?? ctx.planFeatures.minSeats,
+          },
+        };
       } catch (error) {
         return createErrorResponse(error);
       }

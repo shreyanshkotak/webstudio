@@ -138,7 +138,7 @@ export const Section = () => {
                     styles,
                     parseCssFragment("all 200ms ease 0ms normal", [
                       "transition",
-                    ])
+                    ]).styles
                   );
                 }}
               />

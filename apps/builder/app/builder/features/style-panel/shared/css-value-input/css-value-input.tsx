@@ -1,5 +1,6 @@
 import {
   Box,
+  Text,
   useCombobox,
   ComboboxRoot,
   ComboboxContent,
@@ -16,7 +17,6 @@ import {
   theme,
   Flex,
   styled,
-  Text,
   ColorThumb,
 } from "@webstudio-is/design-system";
 import type {
@@ -45,6 +45,7 @@ import {
   camelCaseProperty,
   declarationDescriptions,
   isValidDeclaration,
+  parseColor,
 } from "@webstudio-is/css-data";
 import { $selectedInstanceSizes } from "~/shared/nano-states";
 import { convertUnits } from "./convert-units";
@@ -348,8 +349,7 @@ const itemToString = (item: CssValueInputValue | null) => {
     return "";
   }
   if (item.type === "var") {
-    // Use toValue to include fallback when present
-    return toValue(item as StyleValue);
+    return `--${item.value}`;
   }
   if (item.type === "keyword") {
     // E.g. we want currentcolor to be lower case
@@ -362,6 +362,20 @@ const itemToString = (item: CssValueInputValue | null) => {
 };
 
 const Description = styled(Box, { width: theme.spacing[27] });
+
+// Returns the CSS color string to show as a color swatch for a dropdown item,
+// or undefined if the item has no meaningful color preview.
+const getItemColor = (item: CssValueInputValue): string | undefined => {
+  let colorString: string | undefined;
+  if (item.type === "var" && item.fallback !== undefined) {
+    colorString = toValue(item.fallback);
+  } else if (item.type === "keyword") {
+    colorString = item.value;
+  }
+  if (colorString !== undefined && parseColor(colorString) !== undefined) {
+    return colorString;
+  }
+};
 
 /**
  * Common:
@@ -905,7 +919,10 @@ export const CssValueInput = ({
               if (event.target instanceof HTMLInputElement) {
                 // We are setting the value on focus because we might have removed the var() from the value,
                 // but once focused, we need to show the full value
-                event.target.value = itemToString(value);
+                event.target.value =
+                  value.type === "var"
+                    ? toValue(value as StyleValue)
+                    : itemToString(value);
               }
             }}
             autoFocus={autoFocus}
@@ -943,22 +960,24 @@ export const CssValueInput = ({
                     {...getItemProps({ item, index })}
                     key={index}
                   >
-                    {item.type === "var" ? (
-                      <Flex justify="between" align="center" grow gap={2}>
-                        <Box>--{item.value}</Box>
-                        {item.fallback?.type === "unit" && (
-                          <Text variant="small" color="subtle">
-                            {toValue(item.fallback)}
-                          </Text>
-                        )}
-                        {(item.fallback?.type === "rgb" ||
-                          item.fallback?.type === "color") && (
-                          <ColorThumb color={toValue(item.fallback)} />
-                        )}
-                      </Flex>
-                    ) : (
-                      itemToString(item)
-                    )}
+                    {(() => {
+                      const label = itemToString(item);
+                      const colorValue = getItemColor(item);
+                      const labelElement = (
+                        <Text truncate css={{ maxWidth: theme.spacing[30] }}>
+                          {label}
+                        </Text>
+                      );
+                      if (colorValue === undefined) {
+                        return labelElement;
+                      }
+                      return (
+                        <Flex justify="between" align="center" grow gap={2}>
+                          {labelElement}
+                          <ColorThumb color={colorValue} />
+                        </Flex>
+                      );
+                    })()}
                   </ComboboxListboxItem>
                 ))}
               </ComboboxScrollArea>
@@ -974,3 +993,5 @@ export const CssValueInput = ({
     </ComboboxRoot>
   );
 };
+
+export const __testing__ = { getItemColor };
