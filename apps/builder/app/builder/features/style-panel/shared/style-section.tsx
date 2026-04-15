@@ -95,9 +95,6 @@ export const RepeatedStyleSection = (props: {
               disabled={readonly}
               prefix={<PlusIcon />}
               onClick={() => {
-                if (readonly) {
-                  return;
-                }
                 setIsOpen(true);
                 onAdd();
               }}

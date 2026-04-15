@@ -88,9 +88,6 @@ const TransformAdvancedButton = forwardRef<
         variant={styleValueSourceColor}
         disabled={readonly}
         onClick={(event) => {
-          if (readonly) {
-            return;
-          }
           if (event.altKey) {
             const batch = createBatchUpdate();
             for (const property of advancedProperties) {

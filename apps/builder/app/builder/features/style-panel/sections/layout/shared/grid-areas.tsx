@@ -614,9 +614,6 @@ export const GridAreas = () => {
             disabled={readonly}
             onClick={(e) => {
               e.stopPropagation();
-              if (readonly) {
-                return;
-              }
               addArea();
             }}
           >
