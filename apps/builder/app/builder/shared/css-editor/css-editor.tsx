@@ -321,6 +321,7 @@ export const CssEditor = ({
   onAddDeclarations,
   onDeleteAllDeclarations,
   declarations,
+  readonly = false,
   showSearch = true,
   virtualize = true,
   propertiesPosition = "bottom",
@@ -333,6 +334,7 @@ export const CssEditor = ({
   onSetProperty: SetProperty;
   onAddDeclarations: (styleMap: CssStyleMap) => void;
   onDeleteAllDeclarations: (styleMap: CssStyleMap) => void;
+  readonly?: boolean;
   showSearch?: boolean;
   propertiesPosition?: "top" | "bottom";
   virtualize?: boolean;
@@ -348,11 +350,19 @@ export const CssEditor = ({
     useState<Array<CssProperty>>();
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const effectiveShowAddStyleInput = readonly ? false : showAddStyleInput;
+  const guardedSetProperty: SetProperty = readonly
+    ? () => () => undefined
+    : onSetProperty;
+  const guardedToggleAddStyleInput = readonly
+    ? undefined
+    : onToggleAddStyleInput;
+
   useEffect(() => {
-    if (showAddStyleInput) {
+    if (effectiveShowAddStyleInput) {
       addPropertyInputRef.current?.focus();
     }
-  }, [showAddStyleInput]);
+  }, [effectiveShowAddStyleInput]);
 
   const declarationsMap = new Map(
     declarations.map((decl) => [decl.property, decl])
@@ -370,6 +380,9 @@ export const CssEditor = ({
     recentProperties.length > 0 && searchProperties === undefined;
 
   const handleInsertStyles = (cssText: string) => {
+    if (readonly) {
+      return new Map();
+    }
     const { styleMap, errors } = parseStyleInput(cssText, $cssVarsMap.get());
     for (const error of errors) {
       toast.error(error);
@@ -423,7 +436,7 @@ export const CssEditor = ({
   };
 
   const afterChangingStyles = () => {
-    onToggleAddStyleInput?.(false);
+    guardedToggleAddStyleInput?.(false);
     requestAnimationFrame(() => {
       // We are either focusing the last value input from the recent list if available or the search input.
       const element =
@@ -437,6 +450,9 @@ export const CssEditor = ({
   };
 
   const handleDeleteProperty: DeleteProperty = (property, options = {}) => {
+    if (readonly) {
+      return;
+    }
     onDeleteProperty(property, options);
     if (options.isEphemeral === true) {
       return;
@@ -447,6 +463,9 @@ export const CssEditor = ({
   };
 
   const handleDeleteAllDeclarations = (styleMap: CssStyleMap) => {
+    if (readonly) {
+      return;
+    }
     setSearchProperties(
       searchProperties?.filter(
         (searchProperty) => styleMap.has(searchProperty) === false
@@ -473,18 +492,18 @@ export const CssEditor = ({
               valueInputRef={lastRecentValueInputRef}
               onChangeComplete={(event) => {
                 if (event.type === "enter") {
-                  onToggleAddStyleInput?.(true);
+                  guardedToggleAddStyleInput?.(true);
                 }
               }}
               onReset={afterChangingStyles}
               onDeleteProperty={handleDeleteProperty}
-              onSetProperty={onSetProperty}
+              onSetProperty={guardedSetProperty}
             />
           );
         })}
       <Box
         css={
-          showAddStyleInput
+          effectiveShowAddStyleInput
             ? { paddingTop: theme.spacing[3] }
             : // We hide it visually so you can tab into it to get shown.
               { overflow: "hidden", height: 0 }
@@ -499,10 +518,10 @@ export const CssEditor = ({
           }}
           onClose={afterChangingStyles}
           onFocus={() => {
-            onToggleAddStyleInput?.(true);
+            guardedToggleAddStyleInput?.(true);
           }}
           onBlur={() => {
-            onToggleAddStyleInput?.(false);
+            guardedToggleAddStyleInput?.(false);
           }}
           ref={addPropertyInputRef}
         />
@@ -563,7 +582,7 @@ export const CssEditor = ({
                 <AdvancedDeclarationLonghand
                   styleDecl={styleDecl}
                   onDeleteProperty={handleDeleteProperty}
-                  onSetProperty={onSetProperty}
+                  onSetProperty={guardedSetProperty}
                   valueInputRef={lastRegularValueInputRef}
                   key={property}
                 />

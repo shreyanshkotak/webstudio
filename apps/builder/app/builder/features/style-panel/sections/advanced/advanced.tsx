@@ -146,18 +146,15 @@ export const Section = () => {
       }}
     >
       <CssEditor
+        readonly={readonly}
         declarations={advancedStyleDeclarations}
-        onDeleteProperty={readonly ? () => undefined : handleDeleteProperty}
-        onSetProperty={readonly ? () => () => undefined : setProperty}
-        onAddDeclarations={readonly ? () => undefined : handleAddDeclarations}
-        onDeleteAllDeclarations={
-          readonly ? () => undefined : handleDeleteAllDeclarations
-        }
+        onDeleteProperty={handleDeleteProperty}
+        onSetProperty={setProperty}
+        onAddDeclarations={handleAddDeclarations}
+        onDeleteAllDeclarations={handleDeleteAllDeclarations}
         recentProperties={recentProperties}
-        showAddStyleInput={readonly ? false : showAddStyleInput}
-        onToggleAddStyleInput={
-          readonly ? () => undefined : setShowAddStyleInput
-        }
+        showAddStyleInput={showAddStyleInput}
+        onToggleAddStyleInput={setShowAddStyleInput}
       />
     </AdvancedStyleSection>
   );
