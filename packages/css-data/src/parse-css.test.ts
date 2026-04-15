@@ -5,6 +5,7 @@ import {
   parseCss,
   parseMediaQuery,
 } from "./parse-css";
+import { shorthandTestFixtures } from "./__generated__/shorthand-test-fixtures";
 
 describe("Parse CSS", () => {
   test("longhand property name with keyword value", () => {
@@ -564,19 +565,21 @@ describe("Parse CSS", () => {
   });
 
   test("keep prefix for -webkit-text-stroke", () => {
-    // shorthand is kept as-is (not expanded) but prefix is preserved
+    // shorthand expands to prefixed longhands while preserving the prefix
     expect(
       parseCss(`a { -webkit-text-stroke: 1px black; }`, new Map()).styles
     ).toEqual([
       {
         selector: "a",
-        property: "-webkit-text-stroke",
+        property: "-webkit-text-stroke-width",
+        value: { type: "unit", unit: "px", value: 1 },
+      },
+      {
+        selector: "a",
+        property: "-webkit-text-stroke-color",
         value: {
-          type: "tuple",
-          value: [
-            { type: "unit", unit: "px", value: 1 },
-            { type: "keyword", value: "black" },
-          ],
+          type: "keyword",
+          value: "black",
         },
       },
     ]);
@@ -2598,24 +2601,15 @@ describe("var() substitution — font", () => {
 });
 
 describe("var() substitution — -webkit-text-stroke", () => {
-  test("var() for stroke width and color — passes through as tuple (not expanded)", () => {
-    // -webkit-text-stroke is in shorthand-properties so it gets var substitution,
-    // but shorthands.ts has no expand case for it — it passes through as a tuple
-    // value containing the resolved width and color tokens.
+  test("var() for stroke width and color", () => {
     const result = decls(
       `--w: 1px; --clr: black; -webkit-text-stroke: var(--w) var(--clr);`
     );
-    const stroke = result.find(
-      (d) => (d.property as string) === "-webkit-text-stroke"
-    );
-    expect(stroke?.value).toEqual(
-      expect.objectContaining({
-        type: "tuple",
-        value: expect.arrayContaining([
-          expect.objectContaining({ type: "unit", value: 1, unit: "px" }),
-          expect.objectContaining({ type: "keyword", value: "black" }),
-        ]),
-      })
+    expect(result).toEqual(
+      expect.arrayContaining([
+        prop("-webkit-text-stroke-width", u(1, "px")),
+        prop("-webkit-text-stroke-color", kw("black")),
+      ])
     );
   });
 });
@@ -2630,12 +2624,19 @@ describe("parseCss — external cssVars parameter", () => {
   // ── background ────────────────────────────────────────────────────────────
 
   test("background: cross-rule var resolves via cssVars", () => {
-    // --clr defined only in cssVars (parent rule), not in same rule
+    // --clr defined only in cssVars (parent rule), not in same rule.
+    // The var() reference must be preserved — it must NOT be inlined to the
+    // concrete color, because the variable lives on an ancestor element.
     const result = declsWithVars(`background: var(--clr);`, {
       "--clr": "tomato",
     });
     expect(result).toEqual(
-      expect.arrayContaining([prop("background-color", kw("tomato"))])
+      expect.arrayContaining([
+        prop(
+          "background-color",
+          expect.objectContaining({ type: "var", value: "clr" })
+        ),
+      ])
     );
   });
 
@@ -2713,15 +2714,18 @@ describe("parseCss — external cssVars parameter", () => {
   // ── margin / padding ──────────────────────────────────────────────────────
 
   test("margin: cross-rule var for all sides via cssVars", () => {
+    // Single cross-rule var: var() reference must be preserved on every
+    // expanded longhand (all four sides receive the var's value).
     const result = declsWithVars(`margin: var(--space);`, {
       "--space": "16px",
     });
+    const varSpace = expect.objectContaining({ type: "var", value: "space" });
     expect(result).toEqual(
       expect.arrayContaining([
-        prop("margin-top", u(16, "px")),
-        prop("margin-right", u(16, "px")),
-        prop("margin-bottom", u(16, "px")),
-        prop("margin-left", u(16, "px")),
+        prop("margin-top", varSpace),
+        prop("margin-right", varSpace),
+        prop("margin-bottom", varSpace),
+        prop("margin-left", varSpace),
       ])
     );
   });
@@ -2820,6 +2824,72 @@ describe("parseCss — external cssVars parameter", () => {
     );
   });
 
+  // ── multi-token cross-rule var ────────────────────────────────────────────
+
+  test("border: cross-rule multi-token var preserves var() on all longhands", () => {
+    // --b resolves to a full shorthand value; no single longhand string equals
+    // "2px solid red", so var() must be assigned to every longhand.
+    const result = declsWithVars(`border: var(--b);`, {
+      "--b": "2px solid red",
+    });
+    const varB = expect.objectContaining({ type: "var", value: "b" });
+    expect(result).toEqual(
+      expect.arrayContaining([
+        prop("border-top-width", varB),
+        prop("border-top-style", varB),
+        prop("border-top-color", varB),
+        prop("border-right-width", varB),
+      ])
+    );
+  });
+
+  test("background: cross-rule multi-token var preserves var() on all longhands", () => {
+    const result = declsWithVars(`background: var(--bg);`, {
+      "--bg": "url(hero.png) no-repeat center",
+    });
+    const varBg = expect.objectContaining({ type: "var", value: "bg" });
+    expect(result).toEqual(
+      expect.arrayContaining([
+        prop("background-image", varBg),
+        prop("background-repeat", varBg),
+        prop("background-position-x", varBg),
+      ])
+    );
+  });
+
+  test("padding: cross-rule two-value var preserves var() on all sides", () => {
+    // --p: 8px 16px resolves to different values per side; none equals the
+    // full "8px 16px" text → all four padding longhands get var(--p).
+    const result = declsWithVars(`padding: var(--p);`, {
+      "--p": "8px 16px",
+    });
+    const varP = expect.objectContaining({ type: "var", value: "p" });
+    expect(result).toEqual(
+      expect.arrayContaining([
+        prop("padding-top", varP),
+        prop("padding-right", varP),
+        prop("padding-bottom", varP),
+        prop("padding-left", varP),
+      ])
+    );
+  });
+
+  test("background: cross-rule rgb-with-spaces var preserves var() on background-color", () => {
+    // csstree normalises rgb(255, 0, 0) to rgb(255,0,0) in expandShorthands;
+    // the comparison must account for this whitespace difference.
+    const result = declsWithVars(`background: var(--clr);`, {
+      "--clr": "rgb(255, 0, 0)",
+    });
+    expect(result).toEqual(
+      expect.arrayContaining([
+        prop(
+          "background-color",
+          expect.objectContaining({ type: "var", value: "clr" })
+        ),
+      ])
+    );
+  });
+
   // ── multiple rules: cssVars doesn't bleed between rules ───────────────────
 
   test("cssVars are available in both rules when passed", () => {
@@ -2833,8 +2903,12 @@ describe("parseCss — external cssVars parameter", () => {
     const bMarginTop = styles.find(
       (d) => d.selector === ".b" && d.property === "margin-top"
     );
+    // .a: border has extra tokens ("solid red") — not a single var, so resolved
     expect(aBorderTop?.value).toEqual(u(4, "px"));
-    expect(bMarginTop?.value).toEqual(u(4, "px"));
+    // .b: margin is a single cross-rule var — var() reference is preserved
+    expect(bMarginTop?.value).toEqual(
+      expect.objectContaining({ type: "var", value: "w" })
+    );
   });
 
   test("same-rule var overrides cssVars in first rule, not second", () => {
@@ -2849,9 +2923,79 @@ describe("parseCss — external cssVars parameter", () => {
     const bMarginTop = styles.find(
       (d) => d.selector === ".b" && d.property === "margin-top"
     );
+    // .a: same-rule var → inlined to concrete value
     expect(aMarginTop?.value).toEqual(u(10, "px"));
-    expect(bMarginTop?.value).toEqual(u(4, "px"));
+    // .b: cross-rule var → var() reference preserved
+    expect(bMarginTop?.value).toEqual(
+      expect.objectContaining({ type: "var", value: "w" })
+    );
   });
+
+  // ── comprehensive shorthand coverage ─────────────────────────────────────
+  //
+  // Test cases are driven entirely by the generated fixture:
+  //   src/__generated__/shorthand-test-fixtures.ts
+  //
+  // Regenerate with: pnpm build:shorthand-fixtures
+  //
+  // For every shorthand that expandShorthands() handles we run two cases:
+  //   • singleToken – a value matching exactly a single longhand: at least
+  //     one longhand must have type:"var", none may be type:"invalid".
+  //   • multiToken  – a value spanning *all* longhands differently: every
+  //     longhand must have type:"var".
+  //
+  // Shorthands whose longhands[] is empty are not handled by expandShorthands
+  // (they pass through), so no cross-rule substitution is expected from them.
+
+  const expandableFixtures = shorthandTestFixtures.filter(
+    (f) => f.longhands.length > 0
+  );
+
+  test.each(expandableFixtures)(
+    "cross-rule single-token var: $property — at least one var longhand, no invalids",
+    ({ property, singleToken }) => {
+      const result = declsWithVars(`${property}: var(--v);`, {
+        "--v": singleToken,
+      });
+      expect(result.length).toBeGreaterThan(0);
+      const invalids = result.filter((d) => d.value.type === "invalid");
+      const vars = result.filter((d) => d.value.type === "var");
+      expect(invalids).toHaveLength(0);
+      expect(vars.length).toBeGreaterThan(0);
+    }
+  );
+
+  test.each(expandableFixtures)(
+    "cross-rule multi-token var: $property — all longhands are var(), no invalids",
+    ({ property, multiToken }) => {
+      const result = declsWithVars(`${property}: var(--v);`, {
+        "--v": multiToken,
+      });
+      expect(result.length).toBeGreaterThan(0);
+      const invalids = result.filter((d) => d.value.type === "invalid");
+      const vars = result.filter((d) => d.value.type === "var");
+      expect(invalids).toHaveLength(0);
+      expect(vars).toHaveLength(result.length);
+    }
+  );
+
+  // Shorthands not handled by expandShorthands (passthrough): verify they
+  // produce no invalid values when a cross-rule var is used as the value.
+  const passthroughFixtures = shorthandTestFixtures.filter(
+    (f) => f.longhands.length === 0
+  );
+
+  test.each(passthroughFixtures)(
+    "cross-rule passthrough shorthand: $property — no invalid values",
+    ({ property }) => {
+      const result = declsWithVars(`${property}: var(--v);`, {
+        "--v": "none",
+      });
+      expect(result.length).toBeGreaterThan(0);
+      const invalids = result.filter((d) => d.value.type === "invalid");
+      expect(invalids).toHaveLength(0);
+    }
+  );
 });
 
 describe("parseMediaQuery", () => {

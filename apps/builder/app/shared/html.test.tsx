@@ -2948,4 +2948,31 @@ describe("style tag to tokens", () => {
       );
     });
   });
+
+  test("resolves cross-rule CSS variable in background shorthand", () => {
+    // --clr-red is defined in .my-parent but used in .my-child.
+    // background: var(--clr-red) must expand to background-color with the
+    // var() reference preserved — NOT inlined to the concrete color #f00.
+    const result = _generateFragmentFromHtml(`
+      <style>
+        .my-parent { --clr-red: #f00; }
+        .my-child { background: var(--clr-red); }
+      </style>
+      <div class="my-parent">
+        <div class="my-child">test</div>
+      </div>
+    `);
+    const childToken = result.styleSources.find(
+      (s) => s.type === "token" && s.name === "my-child"
+    );
+    expect(childToken).toBeDefined();
+    const bgColor = result.styles.find(
+      (s) =>
+        s.styleSourceId === childToken!.id && s.property === "backgroundColor"
+    );
+    // Must be a var() reference, not a concrete inlined color
+    expect(bgColor?.value).toEqual(
+      expect.objectContaining({ type: "var", value: "clr-red" })
+    );
+  });
 });
