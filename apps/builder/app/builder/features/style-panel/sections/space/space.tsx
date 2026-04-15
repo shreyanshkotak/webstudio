@@ -1,5 +1,4 @@
 import { useState, useRef } from "react";
-import { useStore } from "@nanostores/react";
 import type { CssProperty } from "@webstudio-is/css-engine";
 import { SpaceLayout } from "./layout";
 import { ValueText } from "../shared/value-text";
@@ -15,8 +14,7 @@ import { useKeyboardNavigation } from "../shared/keyboard";
 import { useComputedStyleDecl, useComputedStyles } from "../../shared/model";
 import { createBatchUpdate, deleteProperty } from "../../shared/use-style-data";
 import { useModifierKeys, type Modifiers } from "../../shared/modifier-keys";
-import { $selectedStyleSource } from "~/shared/nano-states";
-import { isStyleSourceLocked } from "~/shared/style-source-utils";
+import { useReadonly } from "../../shared/readonly";
 
 const movementMapSpace = {
   "margin-top": ["margin-bottom", "margin-right", "padding-top", "margin-left"],
@@ -104,7 +102,7 @@ const Cell = ({
   onHover: (target: HoverTarget | undefined) => void;
   property: SpaceStyleProperty;
   getActiveProperties: (modifiers?: Modifiers) => CssProperty[];
-  scrubStatus: ReturnType<typeof useScrub> & { isLocked: boolean };
+  scrubStatus: ReturnType<typeof useScrub> & { readonly: boolean };
 }) => {
   const styleDecl = useComputedStyleDecl(property);
   const finalValue =
@@ -116,7 +114,7 @@ const Cell = ({
       <InputPopover
         styleSource={styleDecl.source.name}
         value={finalValue}
-        isOpen={scrubStatus.isLocked ? false : isPopoverOpen}
+        isOpen={scrubStatus.readonly ? false : isPopoverOpen}
         property={property}
         getActiveProperties={getActiveProperties}
         onClose={onPopoverClose}
@@ -129,7 +127,7 @@ const Cell = ({
         }
         onMouseLeave={() => onHover(undefined)}
         onClick={(event) => {
-          if (scrubStatus.isLocked) {
+          if (scrubStatus.readonly) {
             return;
           }
           if (event.altKey) {
@@ -144,9 +142,7 @@ const Cell = ({
 export { spaceProperties as properties };
 
 export const Section = () => {
-  const isSelectedStyleSourceLocked = isStyleSourceLocked(
-    useStore($selectedStyleSource)
-  );
+  const readonly = useReadonly();
   const styles = useComputedStyles(spaceProperties);
   const [hoverTarget, setHoverTarget] = useState<HoverTarget>();
   const styleValue = styles.find(
@@ -157,7 +153,7 @@ export const Section = () => {
     target: styleValue?.cascadedValue.type === "unit" ? hoverTarget : undefined,
     getModifiersGroup: getSpaceModifiersGroup,
     onChange: (values, options) => {
-      if (isSelectedStyleSourceLocked) {
+      if (readonly) {
         return;
       }
       const batch = createBatchUpdate();
@@ -222,7 +218,7 @@ export const Section = () => {
           )?.source.name;
 
           if (
-            isSelectedStyleSourceLocked === false &&
+            readonly === false &&
             property &&
             // reset when the value is set and after try to edit two sides
             (styleValueSource === "local" || styleValueSource === "overwritten")
@@ -243,7 +239,7 @@ export const Section = () => {
               return;
             }
           }
-          if (isSelectedStyleSourceLocked) {
+          if (readonly) {
             return;
           }
           handleOpenProperty(property);
@@ -269,7 +265,7 @@ export const Section = () => {
             getActiveProperties={getActiveProperties}
             scrubStatus={{
               ...scrubStatus,
-              isLocked: isSelectedStyleSourceLocked,
+              readonly,
             }}
           />
         )}

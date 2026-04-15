@@ -4,7 +4,6 @@
  **/
 
 import { type ReactNode, useCallback, useRef, useState } from "react";
-import { useStore } from "@nanostores/react";
 import { propertyDescriptions } from "@webstudio-is/css-data";
 import {
   RepeatGridIcon,
@@ -31,8 +30,7 @@ import {
 } from "@webstudio-is/design-system";
 import { SelectControl } from "../../controls";
 import { ToggleGroupTooltip } from "../../controls/toggle-group/toggle-group-control";
-import { $selectedStyleSource } from "~/shared/nano-states";
-import { isStyleSourceLocked } from "~/shared/style-source-utils";
+import { useReadonly } from "../../shared/readonly";
 import { BackgroundSize } from "./background-size";
 import { BackgroundGradient } from "./background-gradient";
 import { BackgroundImage } from "./background-image";
@@ -325,14 +323,12 @@ const BackgroundAttachment = ({ index }: { index: number }) => {
 };
 
 const OtherLayerProperties = ({ index }: { index: number }) => {
-  const isSelectedStyleSourceLocked = isStyleSourceLocked(
-    useStore($selectedStyleSource)
-  );
+  const readonly = useReadonly();
   return (
     <CollapsibleSectionRoot
       label={"More properties"}
       fullWidth={true}
-      contentDisabled={isSelectedStyleSourceLocked}
+      contentDisabled={readonly}
     >
       <Flex
         gap="2"

@@ -22,8 +22,7 @@ import { getDots } from "../../shared/style-section";
 import { CssEditor } from "../../../../shared/css-editor";
 import { $advancedStyleDeclarations } from "./stores";
 import { $selectedInstanceKey } from "~/shared/awareness";
-import { $selectedStyleSource } from "~/shared/nano-states";
-import { isStyleSourceLocked } from "~/shared/style-source-utils";
+import { useReadonly } from "../../shared/readonly";
 
 // Only here to keep the same section module interface
 export const properties = [];
@@ -36,25 +35,23 @@ const AdvancedStyleSection = (props: {
 }) => {
   const { label, children, properties, onAdd } = props;
   const [isOpen, setIsOpen] = useOpenState(label);
-  const isSelectedStyleSourceLocked = isStyleSourceLocked(
-    useStore($selectedStyleSource)
-  );
+  const readonly = useReadonly();
   const styles = useComputedStyles(properties);
   return (
     <CollapsibleSectionRoot
       isOpen={isOpen}
       onOpenChange={setIsOpen}
       fullWidth
-      contentDisabled={isSelectedStyleSourceLocked}
+      contentDisabled={readonly}
       trigger={
         <SectionTitle
           dots={getDots(styles)}
           suffix={
             <SectionTitleButton
-              disabled={isSelectedStyleSourceLocked}
+              disabled={readonly}
               prefix={<PlusIcon />}
               onClick={() => {
-                if (isSelectedStyleSourceLocked) {
+                if (readonly) {
                   return;
                 }
                 setIsOpen(true);
@@ -74,9 +71,7 @@ const AdvancedStyleSection = (props: {
 
 export const Section = () => {
   const advancedStyleDeclarations = useStore($advancedStyleDeclarations);
-  const isSelectedStyleSourceLocked = isStyleSourceLocked(
-    useStore($selectedStyleSource)
-  );
+  const readonly = useReadonly();
   const properties = advancedStyleDeclarations.map(
     (styleDecl) => styleDecl.property
   );
@@ -144,7 +139,7 @@ export const Section = () => {
       label="Advanced"
       properties={properties}
       onAdd={() => {
-        if (isSelectedStyleSourceLocked) {
+        if (readonly) {
           return;
         }
         setShowAddStyleInput(true);
@@ -152,26 +147,16 @@ export const Section = () => {
     >
       <CssEditor
         declarations={advancedStyleDeclarations}
-        onDeleteProperty={
-          isSelectedStyleSourceLocked ? () => undefined : handleDeleteProperty
-        }
-        onSetProperty={
-          isSelectedStyleSourceLocked ? () => () => undefined : setProperty
-        }
-        onAddDeclarations={
-          isSelectedStyleSourceLocked ? () => undefined : handleAddDeclarations
-        }
+        onDeleteProperty={readonly ? () => undefined : handleDeleteProperty}
+        onSetProperty={readonly ? () => () => undefined : setProperty}
+        onAddDeclarations={readonly ? () => undefined : handleAddDeclarations}
         onDeleteAllDeclarations={
-          isSelectedStyleSourceLocked
-            ? () => undefined
-            : handleDeleteAllDeclarations
+          readonly ? () => undefined : handleDeleteAllDeclarations
         }
         recentProperties={recentProperties}
-        showAddStyleInput={
-          isSelectedStyleSourceLocked ? false : showAddStyleInput
-        }
+        showAddStyleInput={readonly ? false : showAddStyleInput}
         onToggleAddStyleInput={
-          isSelectedStyleSourceLocked ? () => undefined : setShowAddStyleInput
+          readonly ? () => undefined : setShowAddStyleInput
         }
       />
     </AdvancedStyleSection>
