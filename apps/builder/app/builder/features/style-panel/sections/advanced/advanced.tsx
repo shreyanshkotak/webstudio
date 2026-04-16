@@ -29,13 +29,13 @@ export const properties = [];
 
 const AdvancedStyleSection = (props: {
   label: string;
+  readonly: boolean;
   properties: Array<CssProperty>;
   onAdd: () => void;
   children: ReactNode;
 }) => {
-  const { label, children, properties, onAdd } = props;
+  const { label, readonly, children, properties, onAdd } = props;
   const [isOpen, setIsOpen] = useOpenState(label);
-  const readonly = useReadonly();
   const styles = useComputedStyles(properties);
   return (
     <CollapsibleSectionRoot
@@ -134,11 +134,9 @@ export const Section = () => {
   return (
     <AdvancedStyleSection
       label="Advanced"
+      readonly={readonly}
       properties={properties}
       onAdd={() => {
-        if (readonly) {
-          return;
-        }
         setShowAddStyleInput(true);
       }}
     >
