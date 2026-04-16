@@ -451,13 +451,7 @@ export const RepeatedStyle = (props: {
               key={index}
               title={label}
               content={
-                <Flex
-                  direction="column"
-                  aria-disabled={readonly}
-                  css={{
-                    pointerEvents: readonly ? "none" : undefined,
-                  }}
-                >
+                <Flex direction="column">
                   {renderItemContent(index, primaryItem)}
                 </Flex>
               }

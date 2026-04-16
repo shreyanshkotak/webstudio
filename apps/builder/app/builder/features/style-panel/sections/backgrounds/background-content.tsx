@@ -120,6 +120,7 @@ const backgroundTypeOptions: BackgroundTypeOption[] = [
 ];
 
 type BackgroundTypeToggleProps = {
+  disabled?: boolean;
   value: BackgroundType;
   onChange: (value: BackgroundType) => void;
   backgroundStyleItem: StyleValue | undefined;
@@ -131,6 +132,7 @@ type BackgroundTypeToggleProps = {
 };
 
 const BackgroundTypeToggle = ({
+  disabled,
   value,
   onChange,
   backgroundStyleItem,
@@ -184,6 +186,7 @@ const BackgroundTypeToggle = ({
   return (
     <ToggleGroup
       type="single"
+      disabled={disabled}
       value={value}
       aria-label="Background type"
       onValueChange={handleValueChange}
@@ -381,6 +384,7 @@ const OtherLayerProperties = ({ index }: { index: number }) => {
 };
 
 export const BackgroundContent = ({ index }: { index: number }) => {
+  const readonly = useReadonly();
   const backgroundImage = useComputedStyleDecl("background-image");
   const backgroundStyleItem = getBackgroundStyleItem(backgroundImage, index);
 
@@ -407,6 +411,7 @@ export const BackgroundContent = ({ index }: { index: number }) => {
           description={propertyDescriptions.backgroundImage}
         />
         <BackgroundTypeToggle
+          disabled={readonly}
           value={backgroundType}
           onChange={setBackgroundType}
           backgroundStyleItem={backgroundStyleItem}

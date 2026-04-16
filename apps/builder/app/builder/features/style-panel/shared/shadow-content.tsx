@@ -43,6 +43,7 @@ import {
 } from "./css-fragment";
 import { ColorPickerControl } from "./color-picker";
 import { $availableColorVariables, $availableUnitVariables } from "./model";
+import { useReadonly } from "./readonly";
 
 /*
   When it comes to checking and validating individual CSS properties for the box-shadow,
@@ -156,7 +157,9 @@ export const ShadowContent = ({
   const computedShadow =
     computedLayer?.type === "shadow" ? computedLayer : shadowValue;
 
-  const disabledControls = layer.type === "var" || layer.type === "unparsed";
+  const readonly = useReadonly();
+  const disabledControls =
+    readonly || layer.type === "var" || layer.type === "unparsed";
 
   const handleChange = (value: string) => {
     setIntermediateValue({
@@ -432,6 +435,7 @@ export const ShadowContent = ({
             <CssFragmentEditor
               content={
                 <CssFragmentEditorContent
+                  readOnly={readonly}
                   invalid={intermediateValue?.type === "invalid"}
                   autoFocus={disabledControls}
                   value={intermediateValue?.value ?? propertyValue ?? ""}

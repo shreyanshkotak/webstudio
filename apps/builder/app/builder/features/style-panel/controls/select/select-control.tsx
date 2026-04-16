@@ -25,10 +25,12 @@ export const SelectControl = ({
   property,
   index,
   items,
+  disabled,
 }: {
   property: CssProperty;
   index?: number;
   items?: Array<{ label: string; name: string }>;
+  disabled?: boolean;
 }) => {
   const styleDecl = useComputedStyleDecl(property);
   const value =
@@ -66,6 +68,7 @@ export const SelectControl = ({
   return (
     <Select
       // Show empty field instead of radix placeholder like css value input does.
+      disabled={disabled}
       placeholder=""
       options={options}
       value={valueString}
