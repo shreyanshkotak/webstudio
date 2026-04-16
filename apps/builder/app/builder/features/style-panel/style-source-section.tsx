@@ -317,6 +317,9 @@ const getComponentStates = ({
     usedSelectors.add(selectedStyleState);
   }
 
+  const componentStateSelectors = new Set(
+    componentStates.map((s) => s.selector)
+  );
   const allStateSelectors = new Set([...allStates, ...usedSelectors]);
 
   const toConfig = (selector: string): SelectorConfig => ({
@@ -327,7 +330,9 @@ const getComponentStates = ({
   });
 
   const states = Array.from(allStateSelectors)
-    .filter((state) => !isPseudoElement(state))
+    .filter(
+      (state) => !isPseudoElement(state) && !componentStateSelectors.has(state)
+    )
     .map(toConfig);
 
   const pseudoElements = Array.from(allStateSelectors)
