@@ -464,7 +464,9 @@ export const BackgroundContent = ({ index }: { index: number }) => {
             />
           )}
 
-          {backgroundType === "image" && <BackgroundImage index={index} />}
+          {backgroundType === "image" && (
+            <BackgroundImage index={index} disabled={readonly} />
+          )}
 
           <Separator />
 

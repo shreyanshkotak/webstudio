@@ -120,6 +120,7 @@ const AdvancedPropertyLabel = ({
 
 const AdvancedPropertyValue = ({
   styleDecl,
+  readonly = false,
   onDeleteProperty,
   onSetProperty,
   onChangeComplete,
@@ -127,6 +128,7 @@ const AdvancedPropertyValue = ({
   inputRef: inputRefProp,
 }: {
   styleDecl: ComputedStyleDecl;
+  readonly?: boolean;
   onDeleteProperty: DeleteProperty;
   onSetProperty: SetProperty;
   onChangeComplete: ComponentProps<
@@ -150,9 +152,11 @@ const AdvancedPropertyValue = ({
       variant="chromeless"
       text="mono"
       fieldSizing="content"
+      disabled={readonly}
       prefix={
         isColor && (
           <ColorPicker
+            disabled={readonly}
             value={styleDecl.usedValue}
             onChange={(styleValue) => {
               const options = { isEphemeral: true, listed: true };
@@ -262,6 +266,7 @@ const LazyRender = ({ children }: ComponentProps<"div">) => {
 const AdvancedDeclarationLonghand = memo(
   ({
     styleDecl,
+    readonly = false,
     onChangeComplete,
     onDeleteProperty,
     onSetProperty,
@@ -270,6 +275,7 @@ const AdvancedDeclarationLonghand = memo(
     indentation = initialIndentation,
   }: {
     styleDecl: ComputedStyleDecl;
+    readonly?: boolean;
     indentation?: string;
     onReset?: () => void;
     onSetProperty: SetProperty;
@@ -304,6 +310,7 @@ const AdvancedDeclarationLonghand = memo(
         </Text>
         <AdvancedPropertyValue
           styleDecl={styleDecl}
+          readonly={readonly}
           onChangeComplete={onChangeComplete}
           onReset={onReset}
           onDeleteProperty={onDeleteProperty}
@@ -488,6 +495,7 @@ export const CssEditor = ({
           return (
             <AdvancedDeclarationLonghand
               styleDecl={styleDecl}
+              readonly={readonly}
               key={property}
               valueInputRef={lastRecentValueInputRef}
               onChangeComplete={(event) => {
@@ -581,6 +589,7 @@ export const CssEditor = ({
               const declarationElement = (
                 <AdvancedDeclarationLonghand
                   styleDecl={styleDecl}
+                  readonly={readonly}
                   onDeleteProperty={handleDeleteProperty}
                   onSetProperty={guardedSetProperty}
                   valueInputRef={lastRegularValueInputRef}

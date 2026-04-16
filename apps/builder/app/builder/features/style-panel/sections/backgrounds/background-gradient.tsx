@@ -376,6 +376,7 @@ const GradientPickerSection = ({
       css={{ padding: theme.panel.padding }}
     >
       <GradientPicker
+        disabled={disabled}
         gradient={computedGradientForPicker}
         backgroundImage={formatLinearGradient(previewGradientForTrack)}
         type={gradientType}

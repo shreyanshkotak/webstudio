@@ -150,7 +150,10 @@ export const Section = () => {
   );
   const scrubStatus = useScrub({
     value: styleValue?.usedValue,
-    target: styleValue?.cascadedValue.type === "unit" ? hoverTarget : undefined,
+    target:
+      readonly || styleValue?.cascadedValue.type !== "unit"
+        ? undefined
+        : hoverTarget,
     getModifiersGroup: getSpaceModifiersGroup,
     onChange: (values, options) => {
       if (readonly) {
@@ -210,6 +213,7 @@ export const Section = () => {
   return (
     <StyleSection label="Space" properties={spaceProperties}>
       <SpaceLayout
+        disabled={readonly}
         ref={layoutRef}
         onClick={(event) => {
           const property = hoverTarget?.property;
@@ -244,13 +248,15 @@ export const Section = () => {
           }
           handleOpenProperty(property);
         }}
-        onHover={handleHover}
-        onFocus={keyboardNavigation.handleFocus}
-        onBlur={keyboardNavigation.handleBlur}
+        onHover={readonly ? () => undefined : handleHover}
+        onFocus={readonly ? undefined : keyboardNavigation.handleFocus}
+        onBlur={readonly ? undefined : keyboardNavigation.handleBlur}
         activeProperties={activeProperties}
-        onKeyDown={keyboardNavigation.handleKeyDown}
-        onMouseMove={keyboardNavigation.handleMouseMove}
-        onMouseLeave={keyboardNavigation.handleMouseLeave}
+        onKeyDown={readonly ? undefined : keyboardNavigation.handleKeyDown}
+        onMouseMove={readonly ? undefined : keyboardNavigation.handleMouseMove}
+        onMouseLeave={
+          readonly ? undefined : keyboardNavigation.handleMouseLeave
+        }
         renderCell={({ property }) => (
           <Cell
             isPopoverOpen={openProperty === property}

@@ -550,6 +550,7 @@ export const CssValueInput = ({
     options: unitOptions,
     property,
     value,
+    disabled,
     onChange: (unitOrKeyword) => {
       if (unitOrKeyword.type === "keyword") {
         onChangeComplete({ value: unitOrKeyword, type: "unit-select" });
@@ -695,7 +696,8 @@ export const CssValueInput = ({
   const keywordButtonElement =
     value.type === "keyword" && items.length !== 0 ? (
       <NestedInputButton
-        {...getToggleButtonProps()}
+        {...(disabled ? {} : getToggleButtonProps())}
+        disabled={disabled}
         data-state={isOpen ? "open" : "closed"}
         tabIndex={-1}
       />

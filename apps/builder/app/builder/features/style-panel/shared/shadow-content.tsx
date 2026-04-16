@@ -379,6 +379,7 @@ export const ShadowContent = ({
             />
             <ToggleGroup
               type="single"
+              disabled={disabledControls}
               aria-disabled={disabledControls}
               value={shadowValue.position}
               defaultValue="inset"

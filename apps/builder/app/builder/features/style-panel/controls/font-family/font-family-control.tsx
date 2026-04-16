@@ -72,7 +72,7 @@ export const FontFamilyControl = () => {
           <FloatingPanel
             placement="left-start"
             title="Fonts"
-            titleSuffix={<AssetUpload type="font" />}
+            titleSuffix={readonly ? undefined : <AssetUpload type="font" />}
             onOpenChange={setIsFontMangerOpen}
             content={
               <FontsManager
@@ -83,7 +83,7 @@ export const FontFamilyControl = () => {
               />
             }
           >
-            <FontsManagerButton />
+            <FontsManagerButton disabled={readonly} />
           </FloatingPanel>
         }
         getItems={() => items}
