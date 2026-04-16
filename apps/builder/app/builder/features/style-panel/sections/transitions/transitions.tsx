@@ -123,9 +123,6 @@ export const Section = () => {
                 disabled={readonly || isStyleInLocalState === false}
                 prefix={<PlusIcon />}
                 onClick={() => {
-                  if (readonly) {
-                    return;
-                  }
                   setIsOpen(true);
                   addRepeatedStyleItem(
                     styles,
