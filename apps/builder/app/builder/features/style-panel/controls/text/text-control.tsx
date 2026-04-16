@@ -11,7 +11,13 @@ import {
   useComputedStyleDecl,
 } from "../../shared/model";
 
-export const TextControl = ({ property }: { property: CssProperty }) => {
+export const TextControl = ({
+  property,
+  disabled,
+}: {
+  property: CssProperty;
+  disabled?: boolean;
+}) => {
   const computedStyleDecl = useComputedStyleDecl(property);
   const value = computedStyleDecl.cascadedValue;
   const setValue = setProperty(property);
@@ -22,6 +28,7 @@ export const TextControl = ({ property }: { property: CssProperty }) => {
     <CssValueInput
       styleSource={computedStyleDecl.source.name}
       property={property}
+      disabled={disabled}
       value={value}
       intermediateValue={intermediateValue}
       getOptions={() => [

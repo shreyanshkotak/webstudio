@@ -114,10 +114,8 @@ const TransformAdvancedPopover = () => {
       content={
         <Grid
           gap="2"
-          aria-disabled={readonly}
           css={{
             padding: theme.panel.padding,
-            pointerEvents: readonly ? "none" : undefined,
           }}
         >
           <Grid css={{ gridTemplateColumns: `2fr 1fr` }}>
@@ -126,18 +124,24 @@ const TransformAdvancedPopover = () => {
               description={propertyDescriptions.backfaceVisibility}
               properties={["backface-visibility"]}
             />
-            <TextControl property="backface-visibility" />
+            <TextControl property="backface-visibility" disabled={readonly} />
           </Grid>
-          <TransformAndPerspectiveOrigin property="transform-origin" />
+          <TransformAndPerspectiveOrigin
+            property="transform-origin"
+            disabled={readonly}
+          />
           <Grid css={{ gridTemplateColumns: `2fr 1fr` }}>
             <PropertyLabel
               label="Perspective"
               description={propertyDescriptions.perspective}
               properties={["perspective"]}
             />
-            <TextControl property="perspective" />
+            <TextControl property="perspective" disabled={readonly} />
           </Grid>
-          <TransformAndPerspectiveOrigin property="perspective-origin" />
+          <TransformAndPerspectiveOrigin
+            property="perspective-origin"
+            disabled={readonly}
+          />
         </Grid>
       }
     >
@@ -193,9 +197,6 @@ export const Section = () => {
                       })}
                       key={panel}
                       onSelect={() => {
-                        if (readonly) {
-                          return;
-                        }
                         addDefaultsForTransormSection({
                           panel,
                           styles,
@@ -263,16 +264,16 @@ const TransformSection = ({
       content={
         <Flex
           direction="column"
-          aria-disabled={readonly}
           css={{
             padding: theme.panel.padding,
-            pointerEvents: readonly ? "none" : undefined,
           }}
         >
-          {panel === "translate" && <TranslatePanelContent />}
-          {panel === "scale" && <ScalePanelContent />}
-          {panel === "rotate" && <RotatePanelContent />}
-          {panel === "skew" && <SkewPanelContent />}
+          {panel === "translate" && (
+            <TranslatePanelContent disabled={readonly} />
+          )}
+          {panel === "scale" && <ScalePanelContent disabled={readonly} />}
+          {panel === "rotate" && <RotatePanelContent disabled={readonly} />}
+          {panel === "skew" && <SkewPanelContent disabled={readonly} />}
         </Flex>
       }
     >
