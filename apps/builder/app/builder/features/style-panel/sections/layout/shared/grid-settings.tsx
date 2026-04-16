@@ -392,9 +392,6 @@ const TrackEditor = ({
               disabled={disabled || readonly}
               onClick={(e) => {
                 e.stopPropagation();
-                if (readonly) {
-                  return;
-                }
                 addTrack();
               }}
             >
