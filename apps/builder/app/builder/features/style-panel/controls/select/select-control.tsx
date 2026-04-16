@@ -16,6 +16,7 @@ import {
   setProperty,
   type StyleUpdateOptions,
 } from "../../shared/use-style-data";
+import { useReadonly } from "../../shared/readonly";
 import {
   getRepeatedStyleItem,
   setRepeatedStyleItem,
@@ -32,6 +33,7 @@ export const SelectControl = ({
   items?: Array<{ label: string; name: string }>;
   disabled?: boolean;
 }) => {
+  const readonly = useReadonly();
   const styleDecl = useComputedStyleDecl(property);
   const value =
     index === undefined
@@ -68,7 +70,7 @@ export const SelectControl = ({
   return (
     <Select
       // Show empty field instead of radix placeholder like css value input does.
-      disabled={disabled}
+      disabled={disabled || readonly}
       placeholder=""
       options={options}
       value={valueString}

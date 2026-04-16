@@ -83,6 +83,7 @@ type TrackItemProps = {
   isEditing: boolean;
   isAuto?: boolean;
   canRemove: boolean;
+  disabled?: boolean;
   onEditingChange: (open: boolean) => void;
   onUpdate: (index: number, newValue: string) => void;
   onRemove: (index: number) => void;
@@ -100,6 +101,7 @@ const TrackItem = ({
   isEditing,
   isAuto,
   canRemove,
+  disabled,
   onEditingChange,
   onUpdate,
   onRemove,
@@ -157,6 +159,7 @@ const TrackItem = ({
               <Flex direction="column" gap="1">
                 <Label>Min</Label>
                 <CssValueInputContainer
+                  disabled={disabled}
                   styleSource="local"
                   property={property}
                   value={{
@@ -176,6 +179,7 @@ const TrackItem = ({
               <Flex direction="column" gap="1">
                 <Label>Max</Label>
                 <CssValueInputContainer
+                  disabled={disabled}
                   styleSource="local"
                   property={property}
                   value={{
@@ -197,6 +201,7 @@ const TrackItem = ({
             <Flex direction="column" gap="1">
               <Label>Value</Label>
               <CssValueInputContainer
+                disabled={disabled}
                 styleSource="local"
                 property={property}
                 value={{
@@ -216,6 +221,7 @@ const TrackItem = ({
           )}
           <Flex align="center" gap="2">
             <Checkbox
+              disabled={disabled}
               id={`minmax-${id}`}
               checked={isMinmax}
               onCheckedChange={handleMinmaxToggle}
@@ -244,7 +250,7 @@ const TrackItem = ({
             <SmallIconButton
               variant="destructive"
               tabIndex={-1}
-              disabled={canRemove === false}
+              disabled={canRemove === false || disabled}
               icon={<MinusIcon />}
               onClick={(e) => {
                 e.stopPropagation();
@@ -377,7 +383,6 @@ const TrackEditor = ({
       isOpen={isOpen}
       onOpenChange={setIsOpen}
       fullWidth
-      contentDisabled={readonly}
       trigger={
         <Flex
           align="center"
@@ -426,6 +431,7 @@ const TrackEditor = ({
                 isEditing={editingIndex === index}
                 isAuto={isAuto}
                 canRemove={tracks.length > 1}
+                disabled={readonly}
                 onEditingChange={(open) => {
                   if (open) {
                     setEditingIndex(index);
@@ -453,6 +459,7 @@ type GridSettingsProps = {
 };
 
 export const GridSettings = ({ open, onOpenChange }: GridSettingsProps) => {
+  const readonly = useReadonly();
   const selectedInstance = useStore($selectedInstance);
   const gridTemplateColumns = useComputedStyleDecl("grid-template-columns");
   const gridTemplateRows = useComputedStyleDecl("grid-template-rows");
@@ -483,7 +490,7 @@ export const GridSettings = ({ open, onOpenChange }: GridSettingsProps) => {
   const isRowsEditable = isEditableGridMode(rowsMode);
 
   const editGridButton = (
-    <Button color="neutral" css={{ width: "100%" }}>
+    <Button disabled={readonly} color="neutral" css={{ width: "100%" }}>
       Configure grid
     </Button>
   );

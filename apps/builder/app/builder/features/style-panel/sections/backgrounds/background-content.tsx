@@ -208,7 +208,13 @@ const BackgroundTypeToggle = ({
   );
 };
 
-const BackgroundRepeat = ({ index }: { index: number }) => {
+const BackgroundRepeat = ({
+  index,
+  disabled,
+}: {
+  index: number;
+  disabled?: boolean;
+}) => {
   const styleDecl = useComputedStyleDecl("background-repeat");
   const value = getRepeatedStyleItem(styleDecl, index);
   const items = [
@@ -251,6 +257,7 @@ const BackgroundRepeat = ({ index }: { index: number }) => {
     >
       <ToggleGroup
         type="single"
+        disabled={disabled}
         value={toValue(value)}
         aria-label="Background repeat"
         onValueChange={(value) => {
@@ -297,7 +304,13 @@ const BackgroundRepeat = ({ index }: { index: number }) => {
   );
 };
 
-const BackgroundAttachment = ({ index }: { index: number }) => {
+const BackgroundAttachment = ({
+  index,
+  disabled,
+}: {
+  index: number;
+  disabled?: boolean;
+}) => {
   const styleDecl = useComputedStyleDecl("background-attachment");
   const value = getRepeatedStyleItem(styleDecl, index);
   return (
@@ -308,6 +321,7 @@ const BackgroundAttachment = ({ index }: { index: number }) => {
     >
       <ToggleGroup
         type="single"
+        disabled={disabled}
         value={toValue(value)}
         aria-label="Background attachment"
         onValueChange={(value) => {
@@ -328,11 +342,7 @@ const BackgroundAttachment = ({ index }: { index: number }) => {
 const OtherLayerProperties = ({ index }: { index: number }) => {
   const readonly = useReadonly();
   return (
-    <CollapsibleSectionRoot
-      label={"More properties"}
-      fullWidth={true}
-      contentDisabled={readonly}
-    >
+    <CollapsibleSectionRoot label={"More properties"} fullWidth={true}>
       <Flex
         gap="2"
         direction="column"
@@ -344,24 +354,28 @@ const OtherLayerProperties = ({ index }: { index: number }) => {
             description={propertyDescriptions.backgroundBlendMode}
             properties={["background-blend-mode"]}
           />
-          <SelectControl property="background-blend-mode" index={index} />
+          <SelectControl
+            disabled={readonly}
+            property="background-blend-mode"
+            index={index}
+          />
         </Grid>
-        <BackgroundSize index={index} />
-        <BackgroundPosition index={index} />
+        <BackgroundSize disabled={readonly} index={index} />
+        <BackgroundPosition disabled={readonly} index={index} />
         <Grid columns={2} align="center" gap={2}>
           <PropertyLabel
             label="Repeat"
             description={propertyDescriptions.backgroundRepeat}
             properties={["background-repeat"]}
           />
-          <BackgroundRepeat index={index} />
+          <BackgroundRepeat disabled={readonly} index={index} />
 
           <PropertyLabel
             label="Attachment"
             description={propertyDescriptions.backgroundAttachment}
             properties={["background-attachment"]}
           />
-          <BackgroundAttachment index={index} />
+          <BackgroundAttachment disabled={readonly} index={index} />
         </Grid>
         <Grid columns={2} align="center" gap={2}>
           <PropertyLabel
@@ -369,14 +383,22 @@ const OtherLayerProperties = ({ index }: { index: number }) => {
             description={propertyDescriptions.backgroundClip}
             properties={["background-clip"]}
           />
-          <SelectControl property="background-clip" index={index} />
+          <SelectControl
+            disabled={readonly}
+            property="background-clip"
+            index={index}
+          />
 
           <PropertyLabel
             label="Origin"
             description={propertyDescriptions.backgroundOrigin}
             properties={["background-origin"]}
           />
-          <SelectControl property="background-origin" index={index} />
+          <SelectControl
+            disabled={readonly}
+            property="background-origin"
+            index={index}
+          />
         </Grid>
       </Flex>
     </CollapsibleSectionRoot>

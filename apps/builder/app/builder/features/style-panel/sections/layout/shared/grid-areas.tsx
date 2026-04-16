@@ -226,6 +226,7 @@ type AreaEditorProps = {
   gridColumns: number;
   gridRows: number;
   existingAreas: AreaInfo[];
+  disabled?: boolean;
   onSave: (area: AreaInfo, oldName?: string) => void;
   onClose: () => void;
 };
@@ -236,6 +237,7 @@ const AreaEditor = ({
   gridColumns,
   gridRows,
   existingAreas,
+  disabled,
   onSave,
   onClose,
 }: AreaEditorProps) => {
@@ -330,6 +332,7 @@ const AreaEditor = ({
       >
         <Label>Name</Label>
         <InputField
+          disabled={disabled}
           css={{ gridColumn: "span 2" }}
           value={value.name}
           onChange={(event) => setValue({ ...value, name: event.target.value })}
@@ -356,6 +359,7 @@ const AreaEditor = ({
       >
         <Label css={{ paddingTop: theme.spacing[3] }}>Position</Label>
         <GridPositionInputs
+          disabled={disabled}
           value={{
             ...value,
             columnEnd: value.columnEnd - 1,
@@ -385,6 +389,7 @@ const AreaEditor = ({
       </Grid>
 
       <GridAreaPicker
+        disabled={disabled}
         value={value}
         onChange={(picked) => {
           setValue(picked);
@@ -600,7 +605,6 @@ export const GridAreas = () => {
       isOpen={isOpen}
       onOpenChange={setIsOpen}
       fullWidth
-      contentDisabled={readonly}
       trigger={
         <Flex
           align="center"
@@ -640,6 +644,7 @@ export const GridAreas = () => {
               title="Edit area"
               content={
                 <AreaEditor
+                  disabled={readonly}
                   area={area}
                   editingIndex={index}
                   gridColumns={columns}
@@ -672,6 +677,7 @@ export const GridAreas = () => {
                 buttons={
                   <SmallIconButton
                     variant="destructive"
+                    disabled={readonly}
                     tabIndex={-1}
                     icon={<MinusIcon />}
                     onClick={(e) => {

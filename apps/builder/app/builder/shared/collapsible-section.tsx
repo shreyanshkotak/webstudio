@@ -8,8 +8,6 @@ import {
   SectionTitleButton,
   Separator,
   theme,
-  getDisabledFocusRegionProps,
-  useDisabledFocusRegion,
 } from "@webstudio-is/design-system";
 import {
   createContext,
@@ -120,7 +118,6 @@ type CollapsibleSectionBaseProps = {
   children: ReactNode;
   fullWidth?: boolean;
   label?: string;
-  contentDisabled?: boolean;
   isOpen?: boolean;
   onOpenChange?: (value: boolean) => void;
 };
@@ -130,12 +127,9 @@ export const CollapsibleSectionRoot = ({
   trigger,
   children,
   fullWidth = false,
-  contentDisabled = false,
   isOpen,
   onOpenChange,
 }: CollapsibleSectionBaseProps) => {
-  const contentRef = useDisabledFocusRegion<HTMLDivElement>(contentDisabled);
-
   return (
     <Collapsible.Root defaultOpen open={isOpen} onOpenChange={onOpenChange}>
       <Collapsible.Trigger asChild>
@@ -148,15 +142,12 @@ export const CollapsibleSectionRoot = ({
 
       <Collapsible.Content asChild>
         <Flex
-          ref={contentRef}
           gap="2"
           direction="column"
-          {...getDisabledFocusRegionProps(contentDisabled)}
           css={{
             pb: theme.panel.paddingBlock,
             px: fullWidth ? 0 : theme.panel.paddingInline,
             paddingTop: 0,
-            pointerEvents: contentDisabled ? "none" : undefined,
             "&:empty": { display: "none" },
           }}
         >

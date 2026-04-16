@@ -156,7 +156,13 @@ export const BackgroundPositionControl = ({
   );
 };
 
-export const BackgroundPosition = ({ index }: { index: number }) => {
+export const BackgroundPosition = ({
+  index,
+  disabled,
+}: {
+  index: number;
+  disabled?: boolean;
+}) => {
   const [backgroundPositionX, backgroundPositionY] = useComputedStyles([
     "background-position-x",
     "background-position-y",
@@ -181,6 +187,7 @@ export const BackgroundPosition = ({ index }: { index: number }) => {
 
   return (
     <BackgroundPositionControl
+      disabled={disabled}
       xAxis={{
         label: "Left",
         description: "Left position offset",

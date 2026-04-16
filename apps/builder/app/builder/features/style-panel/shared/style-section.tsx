@@ -43,14 +43,12 @@ export const StyleSection = (props: {
 }) => {
   const { label, children, properties, fullWidth, suffix } = props;
   const [isOpen, setIsOpen] = useOpenState(label);
-  const readonly = useReadonly();
   const styles = useComputedStyles(properties);
   return (
     <CollapsibleSectionRoot
       label={label}
       isOpen={isOpen}
       onOpenChange={setIsOpen}
-      contentDisabled={readonly}
       trigger={
         <SectionTitle dots={getDots(styles)} suffix={suffix}>
           <SectionTitleLabel>{label}</SectionTitleLabel>
@@ -84,7 +82,6 @@ export const RepeatedStyleSection = (props: {
       label={label}
       isOpen={isOpen}
       onOpenChange={setIsOpen}
-      contentDisabled={readonly}
       trigger={
         <SectionTitle
           inactive={dots.length === 0}

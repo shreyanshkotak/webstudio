@@ -10,6 +10,7 @@ import {
   $availableUnitVariables,
   useComputedStyleDecl,
 } from "../../shared/model";
+import { useReadonly } from "../../shared/readonly";
 
 export const TextControl = ({
   property,
@@ -18,6 +19,7 @@ export const TextControl = ({
   property: CssProperty;
   disabled?: boolean;
 }) => {
+  const readonly = useReadonly();
   const computedStyleDecl = useComputedStyleDecl(property);
   const value = computedStyleDecl.cascadedValue;
   const setValue = setProperty(property);
@@ -28,7 +30,7 @@ export const TextControl = ({
     <CssValueInput
       styleSource={computedStyleDecl.source.name}
       property={property}
-      disabled={disabled}
+      disabled={disabled || readonly}
       value={value}
       intermediateValue={intermediateValue}
       getOptions={() => [
