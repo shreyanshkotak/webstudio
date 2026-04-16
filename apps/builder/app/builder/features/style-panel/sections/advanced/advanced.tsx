@@ -42,7 +42,6 @@ const AdvancedStyleSection = (props: {
       isOpen={isOpen}
       onOpenChange={setIsOpen}
       fullWidth
-      contentDisabled={readonly}
       trigger={
         <SectionTitle
           dots={getDots(styles)}

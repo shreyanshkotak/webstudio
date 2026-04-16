@@ -169,7 +169,6 @@ export const Section = () => {
       label={label}
       isOpen={isOpen}
       onOpenChange={setIsOpen}
-      contentDisabled={readonly}
       trigger={
         <SectionTitle
           inactive={dots.length === 0}
