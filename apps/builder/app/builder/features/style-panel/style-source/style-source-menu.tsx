@@ -348,7 +348,7 @@ export const StyleSourceMenu = (props: StyleSourceMenuProps) => {
               props.onToggleLock?.(props.item.id, props.item.locked === false)
             }
           >
-            {props.item.locked ? "Unlock token" : "Lock token"}
+            {props.item.locked ? "Unlock" : "Lock"}
           </DropdownMenuItem>
         )}
         {props.item.source === "local" && (
