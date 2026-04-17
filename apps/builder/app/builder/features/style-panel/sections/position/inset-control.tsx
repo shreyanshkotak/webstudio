@@ -78,9 +78,15 @@ export const InsetControl = () => {
 
   const scrubStatus = useScrub({
     value: styleValue?.usedValue,
-    target: styleValue?.cascadedValue.type === "unit" ? hoverTarget : undefined,
+    target:
+      readonly || styleValue?.cascadedValue.type !== "unit"
+        ? undefined
+        : hoverTarget,
     getModifiersGroup: getInsetModifiersGroup,
     onChange: (values, options) => {
+      if (readonly) {
+        return;
+      }
       const batch = createBatchUpdate();
       for (const property of ["top", "right", "bottom", "left"] as const) {
         const value = values[property];
