@@ -284,16 +284,12 @@ export const ColorPicker = ({
     colorInputElement.addEventListener(
       "close",
       () => {
-        if (disabled) {
-          callbacksRef.current.enableCanvasPointerEvents();
-          document.body.style.removeProperty("user-select");
-          callbacksRef.current.onOpenChange?.(false);
-          return;
-        }
         callbacksRef.current.enableCanvasPointerEvents();
         document.body.style.removeProperty("user-select");
         callbacksRef.current.onOpenChange?.(false);
-        callbacksRef.current.onChangeComplete(lastStyleValue);
+        if (!disabled) {
+          callbacksRef.current.onChangeComplete(lastStyleValue);
+        }
       },
       { signal }
     );
