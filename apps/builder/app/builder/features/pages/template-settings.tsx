@@ -3,12 +3,10 @@ import { z } from "zod";
 import { useState, useCallback, useId, type JSX } from "react";
 import { useStore } from "@nanostores/react";
 import { useDebouncedCallback } from "use-debounce";
-import slugify from "slugify";
 import {
   type PageTemplate,
   PageName,
   PageTitle,
-  findPageByIdOrPath,
   ROOT_FOLDER_ID,
   elementComponent,
   type Page,
@@ -59,6 +57,7 @@ import {
   duplicateTemplate,
   instantiateTemplate,
   isPathAvailable,
+  nameToPath,
 } from "./page-utils";
 import { Form } from "./form";
 
@@ -446,7 +445,6 @@ const TemplateFormFields = ({
     <Grid css={{ height: "100%" }}>
       <ScrollArea>
         <Grid gap={2} css={{ padding: theme.panel.padding }}>
-          {/* Template name */}
           <Grid gap={1}>
             <Label htmlFor={nameId}>Template name</Label>
             <InputErrorsTooltip errors={errors.name}>
@@ -464,7 +462,6 @@ const TemplateFormFields = ({
 
         <Separator />
 
-        {/* Search settings */}
         <Grid gap={2} css={{ my: theme.spacing[5], mx: theme.spacing[8] }}>
           <Label text="title">Search</Label>
           <Text color="subtle">
@@ -472,7 +469,6 @@ const TemplateFormFields = ({
             engine results.
           </Text>
 
-          {/* Page title */}
           <Grid gap={1}>
             <Label htmlFor={titleId}>Page title (default)</Label>
             <BindingControl>
@@ -503,7 +499,6 @@ const TemplateFormFields = ({
             </BindingControl>
           </Grid>
 
-          {/* Description */}
           <Grid gap={1}>
             <Label htmlFor={descriptionId}>Description</Label>
             <BindingControl>
@@ -533,7 +528,6 @@ const TemplateFormFields = ({
               </InputErrorsTooltip>
             </BindingControl>
 
-            {/* Exclude from search */}
             <BindingControl>
               <Grid
                 flow={"column"}
@@ -582,7 +576,6 @@ const TemplateFormFields = ({
 
         <Separator />
 
-        {/* Social image */}
         <Grid gap={2} css={{ my: theme.spacing[5], mx: theme.spacing[8] }}>
           <Label htmlFor={socialImageFieldId} text="title">
             Social Image
@@ -657,7 +650,6 @@ const TemplateFormFields = ({
 
         <Separator />
 
-        {/* Custom metadata */}
         <CustomMetadata
           customMetas={values.customMetas}
           onChange={(customMetas) => onChange("customMetas", customMetas)}
@@ -668,8 +660,6 @@ const TemplateFormFields = ({
     </Grid>
   );
 };
-
-// ── Create-page-from-template dialog ────────────────────────────────────────
 
 const PageFromTemplateValues = z.object({
   name: PageName,
@@ -709,25 +699,11 @@ const validatePageFromTemplate = (
   return errors;
 };
 
-const nameToPath = (pages: Pages | undefined, name: string) => {
-  if (name === "") return "";
-  const slug = slugify(name, { lower: true, strict: true });
-  const path = `/${slug}`;
-  if (pages === undefined) return path;
-  if (findPageByIdOrPath(path, pages) === undefined) return path;
-  let suffix = 1;
-  while (findPageByIdOrPath(`${path}${suffix}`, pages) !== undefined) {
-    suffix++;
-  }
-  return `${path}${suffix}`;
-};
-
 export const CreatePageFromTemplateSettings = ({
   templateId,
   onSuccess,
 }: {
   templateId: PageTemplate["id"];
-  onClose: () => void;
   onSuccess: (pageId: Page["id"]) => void;
 }) => {
   const pages = useStore($pages);

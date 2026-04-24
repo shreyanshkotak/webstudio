@@ -12,7 +12,6 @@ import {
 import { useStore } from "@nanostores/react";
 import { useDebouncedCallback } from "use-debounce";
 import * as bcp47 from "bcp-47";
-import slugify from "slugify";
 import {
   type Page,
   type Pages,
@@ -104,6 +103,7 @@ import {
   $pageRootScope,
   duplicatePage,
   isPathAvailable,
+  nameToPath,
 } from "./page-utils";
 import { Form } from "./form";
 import { CustomMetadata } from "./custom-metadata";
@@ -1214,32 +1214,6 @@ const FormFields = ({
       </ScrollArea>
     </Grid>
   );
-};
-
-const nameToPath = (pages: Pages | undefined, name: string) => {
-  if (name === "") {
-    return "";
-  }
-
-  const slug = slugify(name, { lower: true, strict: true });
-  const path = `/${slug}`;
-
-  // for TypeScript
-  if (pages === undefined) {
-    return path;
-  }
-
-  if (findPageByIdOrPath(path, pages) === undefined) {
-    return path;
-  }
-
-  let suffix = 1;
-
-  while (findPageByIdOrPath(`${path}${suffix}`, pages) !== undefined) {
-    suffix++;
-  }
-
-  return `${path}${suffix}`;
 };
 
 export const NewPageSettings = ({

@@ -41,6 +41,25 @@ import {
   selectPage,
 } from "~/shared/awareness";
 
+export const nameToPath = (pages: Pages | undefined, name: string) => {
+  if (name === "") {
+    return "";
+  }
+  const slug = slugify(name, { lower: true, strict: true });
+  const path = `/${slug}`;
+  if (pages === undefined) {
+    return path;
+  }
+  if (findPageByIdOrPath(path, pages) === undefined) {
+    return path;
+  }
+  let suffix = 1;
+  while (findPageByIdOrPath(`${path}${suffix}`, pages) !== undefined) {
+    suffix++;
+  }
+  return `${path}${suffix}`;
+};
+
 /**
  * When page or folder needs to be deleted or moved to a different parent,
  * we want to cleanup any existing reference to it in current folder.
@@ -577,11 +596,9 @@ export const instantiateTemplateAsNewPage = (
 ) => {
   const pages = $pages.get();
   const template = pages?.pageTemplates?.find((t) => t.id === templateId);
-  if (!pages || !template) {
+  if (pages === undefined || template === undefined) {
     return;
   }
-
-  // Deduplicate name against existing pages in the root folder
   const rootFolder = pages.folders.find(isRootFolder);
   const usedNames = new Set<string>();
   for (const childId of rootFolder?.children ?? []) {
@@ -596,19 +613,9 @@ export const instantiateTemplateAsNewPage = (
     name = `${template.name} (${nameNum})`;
     nameNum += 1;
   }
-
-  // Deduplicate path from the template name slug
-  const baseSlug = slugify(template.name, { lower: true, strict: true });
-  let path = `/${baseSlug}`;
-  let suffix = 1;
-  while (findPageByIdOrPath(path, pages) !== undefined) {
-    path = `/${baseSlug}${suffix}`;
-    suffix += 1;
-  }
-
   return instantiateTemplate({
     templateId,
-    overrides: { name, path },
+    overrides: { name, path: nameToPath(pages, template.name) },
     folderId: ROOT_FOLDER_ID,
   });
 };

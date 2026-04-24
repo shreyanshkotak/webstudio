@@ -711,7 +711,6 @@ const TemplateEditor = ({
     return (
       <CreatePageFromTemplateSettings
         templateId={createFromTemplateId}
-        onClose={() => setCreateFromTemplateId(undefined)}
         onSuccess={(pageId) => {
           setCreateFromTemplateId(undefined);
           onClose();
