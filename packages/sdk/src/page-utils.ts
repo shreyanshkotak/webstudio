@@ -1,8 +1,15 @@
 import { executeExpression } from "./expression";
-import type { Folder, Page, Pages } from "./schema/pages";
+import type { Folder, Page, PageTemplate, Pages } from "./schema/pages";
 import { isPathnamePattern } from "./url-pattern";
 
 export const ROOT_FOLDER_ID = "root";
+
+/**
+ * Narrows Page | PageTemplate to Page.
+ * Templates have no `path` field; pages always do.
+ */
+export const isPage = (page: Page | PageTemplate): page is Page =>
+  "path" in page;
 
 /**
  * Returns true if folder is the root folder.
@@ -11,19 +18,39 @@ export const isRootFolder = ({ id }: { id: Folder["id"] }) =>
   id === ROOT_FOLDER_ID;
 
 /**
- * Find a page by id or path.
+ * Find a page by id or path. Pass { includeTemplates: true } to also search
+ * pageTemplates (builder-only call sites: canvas awareness, selected-page
+ * computation). Without the flag the return type is `Page | undefined` so
+ * existing call sites are unaffected.
  */
-export const findPageByIdOrPath = (
+export function findPageByIdOrPath(
   idOrPath: string,
-  pages: Pages
-): Page | undefined => {
+  pages: Pages,
+  options: { includeTemplates: true }
+): Page | PageTemplate | undefined;
+export function findPageByIdOrPath(
+  idOrPath: string,
+  pages: Pages,
+  options?: { includeTemplates?: false }
+): Page | undefined;
+export function findPageByIdOrPath(
+  idOrPath: string,
+  pages: Pages,
+  options: { includeTemplates?: boolean } = {}
+): Page | PageTemplate | undefined {
   if (idOrPath === "" || idOrPath === "/" || idOrPath === pages.homePage.id) {
     return pages.homePage;
   }
-  return pages.pages.find(
+  const found = pages.pages.find(
     (page) => page.id === idOrPath || getPagePath(page.id, pages) === idOrPath
   );
-};
+  if (found) {
+    return found;
+  }
+  if (options.includeTemplates) {
+    return pages.pageTemplates?.find((t) => t.id === idOrPath);
+  }
+}
 
 /**
  * Find a folder that has has that id in the children.

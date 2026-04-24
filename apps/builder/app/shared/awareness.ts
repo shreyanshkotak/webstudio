@@ -1,10 +1,12 @@
 import { atom, computed, onSet } from "nanostores";
 import {
   findPageByIdOrPath,
+  isPage,
   Instance,
   Instances,
   ROOT_INSTANCE_ID,
   type Page,
+  type PageTemplate,
   rootComponent,
   Pages,
   findParentFolderByChildId,
@@ -32,7 +34,9 @@ export const $selectedPage = computed(
     if (pages === undefined || awareness === undefined) {
       return;
     }
-    return findPageByIdOrPath(awareness.pageId, pages);
+    return findPageByIdOrPath(awareness.pageId, pages, {
+      includeTemplates: true,
+    });
   }
 );
 
@@ -40,6 +44,10 @@ export const $selectedPagePath = computed(
   [$selectedPage, $pages],
   (page, pages) => {
     if (pages === undefined || page === undefined) {
+      return "/";
+    }
+    // PageTemplate has no path — return "/" as placeholder
+    if (!isPage(page)) {
       return "/";
     }
     const parentFolder = findParentFolderByChildId(page.id, pages.folders);
@@ -181,12 +189,12 @@ export const $selectedInstancePathWithRoot = computed(
   }
 );
 
-export const selectPage = (pageId: Page["id"]) => {
+export const selectPage = (pageId: Page["id"] | PageTemplate["id"]) => {
   const pages = $pages.get();
   if (pages === undefined) {
     return;
   }
-  const page = findPageByIdOrPath(pageId, pages);
+  const page = findPageByIdOrPath(pageId, pages, { includeTemplates: true });
   if (page === undefined) {
     return;
   }
@@ -212,7 +220,11 @@ export const selectInstance = (
 
 const findPageId = (pages: Pages, instanceSelector: InstanceSelector) => {
   const rootInstanceId = instanceSelector.at(-1);
-  for (const page of [pages.homePage, ...pages.pages]) {
+  for (const page of [
+    pages.homePage,
+    ...pages.pages,
+    ...(pages.pageTemplates ?? []),
+  ]) {
     if (page.rootInstanceId === rootInstanceId) {
       return page.id;
     }

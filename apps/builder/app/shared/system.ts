@@ -1,5 +1,10 @@
 import { atom, computed } from "nanostores";
-import { findPageByIdOrPath, type Page, type System } from "@webstudio-is/sdk";
+import {
+  findPageByIdOrPath,
+  isPage,
+  type Page,
+  type System,
+} from "@webstudio-is/sdk";
 import {
   compilePathnamePattern,
   matchPathnamePattern,
@@ -37,7 +42,7 @@ export const $currentSystem = computed(
       pathname: "/",
       origin,
     };
-    if (page === undefined) {
+    if (page === undefined || !isPage(page)) {
       return system;
     }
     const systemData = systemByPage.get(page.id);
@@ -81,7 +86,7 @@ export const updateCurrentSystem = (
   update: Partial<Pick<System, "search" | "params">>
 ) => {
   const page = $selectedPage.get();
-  if (page === undefined) {
+  if (page === undefined || !isPage(page)) {
     return;
   }
   const systemDataByPage = new Map($systemDataByPage.get());

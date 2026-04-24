@@ -153,6 +153,17 @@ const Page = z.object({
   path: PagePath,
 });
 
+export const PageTemplate = z.object({
+  id: PageId,
+  name: PageName,
+  title: PageTitle,
+  rootInstanceId: z.string(),
+  systemDataSourceId: z.string().optional(),
+  meta: commonPageFields.meta,
+});
+
+export type PageTemplate = z.infer<typeof PageTemplate>;
+
 const ProjectMeta = z.object({
   // All fields are optional to ensure consistency and allow for the addition of new fields without requiring migration
   siteName: z.string().optional(),
@@ -197,6 +208,7 @@ export const Pages = z.object({
   redirects: z.array(PageRedirect).optional(),
   homePage: HomePage,
   pages: z.array(Page),
+  pageTemplates: z.array(PageTemplate).optional(),
   folders: z
     .array(Folder)
     .refine((folders) => folders.length > 0, "Folders can't be empty"),

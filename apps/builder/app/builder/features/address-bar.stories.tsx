@@ -56,7 +56,11 @@ const HistoryInspect = () => {
   const page = useStore($selectedPage);
   return (
     <Text variant="mono" css={{ whiteSpace: "pre" }}>
-      {JSON.stringify(page?.history, null, 2)}
+      {JSON.stringify(
+        page !== undefined && "history" in page ? page.history : undefined,
+        null,
+        2
+      )}
     </Text>
   );
 };
