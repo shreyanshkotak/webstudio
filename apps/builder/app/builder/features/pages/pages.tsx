@@ -42,6 +42,7 @@ import {
 import {
   $editingPageId,
   $editingTemplateId,
+  $creatingPageFromTemplateId,
   $isContentMode,
   $isDesignMode,
   $pages,
@@ -57,7 +58,6 @@ import {
   getStoredDropTarget,
   canDrop,
   deleteTemplateMutable,
-  instantiateTemplateAsNewPage,
 } from "./page-utils";
 import {
   FolderSettings,
@@ -746,6 +746,7 @@ export const PagesPanel = ({ onClose }: { onClose: () => void }) => {
   const currentPage = useStore($selectedPage);
   const editingItemId = useStore($editingPageId);
   const editingTemplateItemId = useStore($editingTemplateId);
+  const creatingFromTemplateId = useStore($creatingPageFromTemplateId);
   const pages = useStore($pages);
   const isDesignMode = useStore($isDesignMode);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -887,11 +888,7 @@ export const PagesPanel = ({ onClose }: { onClose: () => void }) => {
               $editingTemplateId.set(id);
             }}
             onCreatePageFromTemplate={(id) => {
-              const newPageId = instantiateTemplateAsNewPage(id);
-              if (newPageId) {
-                selectPage(newPageId);
-                $editingPageId.set(newPageId);
-              }
+              $creatingPageFromTemplateId.set(id);
             }}
           />
         </>
@@ -940,6 +937,30 @@ export const PagesPanel = ({ onClose }: { onClose: () => void }) => {
           onOpenChange={(isOpen) => {
             if (!isOpen) {
               $editingTemplateId.set(undefined);
+            }
+          }}
+        >
+          <span style={{ display: "none" }} />
+        </FloatingPanel>
+      )}
+
+      {creatingFromTemplateId !== undefined && (
+        <FloatingPanel
+          content={
+            <CreatePageFromTemplateSettings
+              templateId={creatingFromTemplateId}
+              onSuccess={(newPageId) => {
+                $creatingPageFromTemplateId.set(undefined);
+                selectPage(newPageId);
+              }}
+            />
+          }
+          placement="right-start"
+          width={Number.parseFloat(rawTheme.spacing[35])}
+          open={true}
+          onOpenChange={(isOpen) => {
+            if (!isOpen) {
+              $creatingPageFromTemplateId.set(undefined);
             }
           }}
         >

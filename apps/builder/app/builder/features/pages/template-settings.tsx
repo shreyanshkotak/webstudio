@@ -11,7 +11,6 @@ import {
   elementComponent,
   type Page,
   type Pages,
-  PagePath,
   isLiteralExpression,
 } from "@webstudio-is/sdk";
 import {
@@ -57,10 +56,16 @@ import {
   $pageRootScope,
   duplicateTemplate,
   instantiateTemplate,
-  isPathAvailable,
   nameToPath,
 } from "./page-utils";
 import { Form } from "./form";
+import {
+  fieldDefaultValues,
+  validateValues,
+  updatePage,
+  FormFields,
+  type Values,
+} from "./page-settings";
 
 type CustomMeta = { property: string; content: string };
 
@@ -673,43 +678,25 @@ const TemplateFormFields = ({
   );
 };
 
-const PageFromTemplateValues = z.object({
-  name: PageName,
-  path: PagePath,
+const toFormValuesFromTemplate = (
+  template: PageTemplate,
+  pages: Pages | undefined
+): Values => ({
+  ...fieldDefaultValues,
+  name: template.name,
+  path: nameToPath(pages, template.name),
+  title: template.title,
+  description: template.meta.description ?? fieldDefaultValues.description,
+  excludePageFromSearch:
+    template.meta.excludePageFromSearch ??
+    fieldDefaultValues.excludePageFromSearch,
+  language: template.meta.language ?? fieldDefaultValues.language,
+  socialImageUrl:
+    template.meta.socialImageUrl ?? fieldDefaultValues.socialImageUrl,
+  socialImageAssetId:
+    template.meta.socialImageAssetId ?? fieldDefaultValues.socialImageAssetId,
+  customMetas: template.meta.custom ?? fieldDefaultValues.customMetas,
 });
-
-type PageFromTemplateFormValues = {
-  name: string;
-  path: string;
-};
-
-type PageFromTemplateErrors = {
-  name?: string[];
-  path?: string[];
-};
-
-const validatePageFromTemplate = (
-  pages: Pages | undefined,
-  values: PageFromTemplateFormValues
-): PageFromTemplateErrors => {
-  const result = PageFromTemplateValues.safeParse(values);
-  if (result.success === false) {
-    return result.error.formErrors.fieldErrors;
-  }
-  const errors: PageFromTemplateErrors = {};
-  if (pages !== undefined) {
-    if (
-      isPathAvailable({
-        pages,
-        path: values.path,
-        parentFolderId: ROOT_FOLDER_ID,
-      }) === false
-    ) {
-      errors.path = ["All paths must be unique"];
-    }
-  }
-  return errors;
-};
 
 export const CreatePageFromTemplateSettings = ({
   templateId,
@@ -720,24 +707,28 @@ export const CreatePageFromTemplateSettings = ({
 }) => {
   const pages = useStore($pages);
   const template = pages?.pageTemplates?.find((t) => t.id === templateId);
+  const { variableValues } = useStore($pageRootScope);
 
-  const [values, setValues] = useState<PageFromTemplateFormValues>(() => {
-    const name = template?.name ?? "Untitled";
-    return { name, path: nameToPath(pages, name) };
-  });
+  const [values, setValues] = useState<Values>(() =>
+    template
+      ? toFormValuesFromTemplate(template, pages)
+      : {
+          ...fieldDefaultValues,
+          path: nameToPath(pages, fieldDefaultValues.name),
+        }
+  );
 
-  const errors = validatePageFromTemplate(pages, values);
-  const nameId = useId();
-  const pathId = useId();
+  const errors = validateValues(pages, undefined, values, variableValues);
 
   const handleSubmit = () => {
     if (Object.keys(errors).length === 0) {
       const newPageId = instantiateTemplate({
         templateId,
-        overrides: values,
+        overrides: { name: values.name, path: values.path },
         folderId: ROOT_FOLDER_ID,
       });
       if (newPageId) {
+        updatePage(newPageId, values);
         onSuccess(newPageId);
       }
     }
@@ -763,52 +754,22 @@ export const CreatePageFromTemplateSettings = ({
         Create Page from Template
       </DialogTitle>
       <Form onSubmit={handleSubmit}>
-        <Grid css={{ height: "100%" }}>
-          <ScrollArea>
-            <Grid gap={2} css={{ padding: theme.panel.padding }}>
-              <Grid gap={1}>
-                <Label htmlFor={nameId}>Page name</Label>
-                <InputErrorsTooltip errors={errors.name}>
-                  <InputField
-                    color={errors.name && "error"}
-                    id={nameId}
-                    autoFocus
-                    value={values.name}
-                    onChange={(event) => {
-                      const name = event.target.value;
-                      setValues((prev) => {
-                        const changes: Partial<PageFromTemplateFormValues> = {
-                          name,
-                        };
-                        if (prev.path === nameToPath(pages, prev.name)) {
-                          changes.path = nameToPath(pages, name);
-                        }
-                        return { ...prev, ...changes };
-                      });
-                    }}
-                  />
-                </InputErrorsTooltip>
-              </Grid>
-              <Grid gap={1}>
-                <Label htmlFor={pathId}>Path</Label>
-                <InputErrorsTooltip errors={errors.path}>
-                  <InputField
-                    color={errors.path && "error"}
-                    id={pathId}
-                    placeholder="/about"
-                    value={values.path}
-                    onChange={(event) =>
-                      setValues((prev) => ({
-                        ...prev,
-                        path: event.target.value,
-                      }))
-                    }
-                  />
-                </InputErrorsTooltip>
-              </Grid>
-            </Grid>
-          </ScrollArea>
-        </Grid>
+        <FormFields
+          autoSelect
+          errors={errors}
+          values={values}
+          onChange={(change) => {
+            setValues((prev) => {
+              const next = { ...prev, [change.field]: change.value };
+              if (change.field === "name") {
+                if (prev.path === nameToPath(pages, prev.name)) {
+                  next.path = nameToPath(pages, change.value as string);
+                }
+              }
+              return next;
+            });
+          }}
+        />
       </Form>
     </>
   );

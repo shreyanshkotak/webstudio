@@ -113,7 +113,7 @@ import {
   wouldCreateLoop,
 } from "~/shared/redirects/redirect-loop-detection";
 
-const fieldDefaultValues = {
+export const fieldDefaultValues = {
   name: "Untitled",
   parentFolderId: ROOT_FOLDER_ID,
   path: "/untitled",
@@ -139,9 +139,9 @@ const fieldNames = Object.keys(
 
 type FieldName = (typeof fieldNames)[number];
 
-type Values = typeof fieldDefaultValues;
+export type Values = typeof fieldDefaultValues;
 
-type OnChange = (
+export type OnChange = (
   event: {
     [K in keyof Values]: {
       field: K;
@@ -150,7 +150,7 @@ type OnChange = (
   }[keyof Values]
 ) => void;
 
-type Errors = {
+export type Errors = {
   [fieldName in FieldName]?: string[];
 };
 
@@ -200,7 +200,7 @@ const PageValues = SharedPageValues.extend({
   path: PagePath,
 });
 
-const validateValues = (
+export const validateValues = (
   pages: undefined | Pages,
   // undefined page id means new page
   pageId: undefined | Page["id"],
@@ -677,7 +677,7 @@ const MarketplaceSection = ({
   );
 };
 
-const FormFields = ({
+export const FormFields = ({
   autoSelect,
   errors,
   values,
@@ -1313,7 +1313,7 @@ const createPage = (pageId: Page["id"], values: Values) => {
   );
 };
 
-const updatePage = (pageId: Page["id"], values: Partial<Values>) => {
+export const updatePage = (pageId: Page["id"], values: Partial<Values>) => {
   const updatePageMutable = (
     page: Page,
     values: Partial<Values>,
