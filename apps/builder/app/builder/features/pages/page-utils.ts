@@ -1,5 +1,6 @@
 import { computed } from "nanostores";
 import { nanoid } from "nanoid";
+import slugify from "slugify";
 import { createRootFolder } from "@webstudio-is/project-build";
 import {
   type Page,
@@ -569,4 +570,45 @@ export const instantiateTemplate = ({
     });
   });
   return newPageId;
+};
+
+export const instantiateTemplateAsNewPage = (
+  templateId: PageTemplate["id"]
+) => {
+  const pages = $pages.get();
+  const template = pages?.pageTemplates?.find((t) => t.id === templateId);
+  if (!pages || !template) {
+    return;
+  }
+
+  // Deduplicate name against existing pages in the root folder
+  const rootFolder = pages.folders.find(isRootFolder);
+  const usedNames = new Set<string>();
+  for (const childId of rootFolder?.children ?? []) {
+    const page = findPageByIdOrPath(childId, pages);
+    if (page) {
+      usedNames.add(page.name);
+    }
+  }
+  let name = template.name;
+  let nameNum = 1;
+  while (usedNames.has(name)) {
+    name = `${template.name} (${nameNum})`;
+    nameNum += 1;
+  }
+
+  // Deduplicate path from the template name slug
+  const baseSlug = slugify(template.name, { lower: true, strict: true });
+  let path = `/${baseSlug}`;
+  let suffix = 1;
+  while (findPageByIdOrPath(path, pages) !== undefined) {
+    path = `/${baseSlug}${suffix}`;
+    suffix += 1;
+  }
+
+  return instantiateTemplate({
+    templateId,
+    overrides: { name, path },
+    folderId: ROOT_FOLDER_ID,
+  });
 };
