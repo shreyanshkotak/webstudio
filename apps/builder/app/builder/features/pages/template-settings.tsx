@@ -17,6 +17,7 @@ import {
 import {
   theme,
   Button,
+  Box,
   Label,
   InputErrorsTooltip,
   InputField,
@@ -50,6 +51,7 @@ import {
 import { ImageControl } from "~/shared/project-settings";
 import { computeExpression } from "~/shared/data-variables";
 import { ImageInfo } from "./image-info";
+import { SearchPreview } from "./search-preview";
 import { SocialPreview } from "./social-preview";
 import { CustomMetadata } from "./custom-metadata";
 import {
@@ -428,6 +430,9 @@ const TemplateFormFields = ({
   const { variableValues, scope, aliases } = useStore($pageRootScope);
   const assets = useStore($assets);
   const publishedOrigin = useStore($publishedOrigin);
+  const pages = useStore($pages);
+  const faviconAsset = assets.get(pages?.meta?.faviconAssetId ?? "");
+  const faviconUrl = faviconAsset?.type === "image" ? faviconAsset.name : "";
 
   const title = String(computeExpression(values.title, variableValues));
   const description = String(
@@ -470,7 +475,36 @@ const TemplateFormFields = ({
           </Text>
 
           <Grid gap={1}>
-            <Label htmlFor={titleId}>Page title (default)</Label>
+            <Label>Search result preview</Label>
+            <Box
+              css={{
+                padding: theme.spacing[5],
+                background: theme.colors.white,
+                borderRadius: theme.borderRadius[4],
+                border: `1px solid ${theme.colors.borderMain}`,
+              }}
+            >
+              <Box
+                css={{
+                  transformOrigin: "top left",
+                  transform: "scale(0.667)",
+                  width: 600,
+                  height: 80,
+                }}
+              >
+                <SearchPreview
+                  siteName={pages?.meta?.siteName ?? ""}
+                  faviconUrl={faviconUrl}
+                  pageUrl={publishedOrigin}
+                  titleLink={title}
+                  snippet={description}
+                />
+              </Box>
+            </Box>
+          </Grid>
+
+          <Grid gap={1}>
+            <Label htmlFor={titleId}>Title</Label>
             <BindingControl>
               <BindingPopover
                 scope={scope}
