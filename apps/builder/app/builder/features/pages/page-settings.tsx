@@ -96,7 +96,7 @@ import { computeExpression } from "~/shared/data-variables";
 import { $currentSystem } from "~/shared/system";
 import { Card } from "../marketplace/card";
 import { ImageInfo } from "./image-info";
-import { SearchPreview } from "./search-preview";
+import { SearchResultPreview } from "./search-preview";
 import { SocialPreview } from "./social-preview";
 import {
   registerFolderChildMutable,
@@ -907,34 +907,13 @@ const FormFields = ({
                 Optimize the way this page appears in search engine results
                 pages.
               </Text>
-              <Grid gap={1}>
-                <Label>Search result preview</Label>
-                <Box
-                  css={{
-                    padding: theme.spacing[5],
-                    background: theme.colors.white,
-                    borderRadius: theme.borderRadius[4],
-                    border: `1px solid ${theme.colors.borderMain}`,
-                  }}
-                >
-                  <Box
-                    css={{
-                      transformOrigin: "top left",
-                      transform: "scale(0.667)",
-                      width: 600,
-                      height: 80,
-                    }}
-                  >
-                    <SearchPreview
-                      siteName={pages?.meta?.siteName ?? ""}
-                      faviconUrl={faviconUrl}
-                      pageUrl={pageUrl}
-                      titleLink={title}
-                      snippet={description}
-                    />
-                  </Box>
-                </Box>
-              </Grid>
+              <SearchResultPreview
+                siteName={pages?.meta?.siteName ?? ""}
+                faviconUrl={faviconUrl}
+                pageUrl={pageUrl}
+                titleLink={title}
+                snippet={description}
+              />
             </Grid>
 
             <Grid gap={1}>

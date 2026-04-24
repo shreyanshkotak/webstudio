@@ -1,4 +1,4 @@
-import { Box, Flex, Grid } from "@webstudio-is/design-system";
+import { Box, Flex, Grid, Label, theme } from "@webstudio-is/design-system";
 import { Image, wsImageLoader } from "@webstudio-is/image";
 import { formatUrl, truncateByWords, truncate } from "./social-utils";
 
@@ -150,6 +150,33 @@ export const SearchPreview = (props: SearchPreviewProps) => {
         }}
       >
         {truncateByWords(props.snippet)}
+      </Box>
+    </Grid>
+  );
+};
+
+export const SearchResultPreview = (props: SearchPreviewProps) => {
+  return (
+    <Grid gap={1}>
+      <Label>Search result preview</Label>
+      <Box
+        css={{
+          padding: theme.spacing[5],
+          background: theme.colors.white,
+          borderRadius: theme.borderRadius[4],
+          border: `1px solid ${theme.colors.borderMain}`,
+        }}
+      >
+        <Box
+          css={{
+            transformOrigin: "top left",
+            transform: "scale(0.667)",
+            width: 600,
+            height: 80,
+          }}
+        >
+          <SearchPreview {...props} />
+        </Box>
       </Box>
     </Grid>
   );

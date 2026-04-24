@@ -17,7 +17,6 @@ import {
 import {
   theme,
   Button,
-  Box,
   Label,
   InputErrorsTooltip,
   InputField,
@@ -51,7 +50,7 @@ import {
 import { ImageControl } from "~/shared/project-settings";
 import { computeExpression } from "~/shared/data-variables";
 import { ImageInfo } from "./image-info";
-import { SearchPreview } from "./search-preview";
+import { SearchResultPreview } from "./search-preview";
 import { SocialPreview } from "./social-preview";
 import { CustomMetadata } from "./custom-metadata";
 import {
@@ -474,34 +473,13 @@ const TemplateFormFields = ({
             engine results.
           </Text>
 
-          <Grid gap={1}>
-            <Label>Search result preview</Label>
-            <Box
-              css={{
-                padding: theme.spacing[5],
-                background: theme.colors.white,
-                borderRadius: theme.borderRadius[4],
-                border: `1px solid ${theme.colors.borderMain}`,
-              }}
-            >
-              <Box
-                css={{
-                  transformOrigin: "top left",
-                  transform: "scale(0.667)",
-                  width: 600,
-                  height: 80,
-                }}
-              >
-                <SearchPreview
-                  siteName={pages?.meta?.siteName ?? ""}
-                  faviconUrl={faviconUrl}
-                  pageUrl={publishedOrigin}
-                  titleLink={title}
-                  snippet={description}
-                />
-              </Box>
-            </Box>
-          </Grid>
+          <SearchResultPreview
+            siteName={pages?.meta?.siteName ?? ""}
+            faviconUrl={faviconUrl}
+            pageUrl={publishedOrigin}
+            titleLink={title}
+            snippet={description}
+          />
 
           <Grid gap={1}>
             <Label htmlFor={titleId}>Title</Label>
