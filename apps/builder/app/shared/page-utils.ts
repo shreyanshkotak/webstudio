@@ -60,7 +60,9 @@ const deduplicatePath = (
   if (path === "/") {
     path = "";
   }
-  let matchedPage = findPageByIdOrPath(`${folderPath}${path}`, pages);
+  // Normalize to avoid double slashes when folderPath is "/" (empty-slug folder)
+  const joinPath = (...parts: string[]) => parts.join("").replace(/\/+/g, "/");
+  let matchedPage = findPageByIdOrPath(joinPath(folderPath, path), pages);
   if (matchedPage === undefined) {
     return path;
   }
@@ -68,7 +70,7 @@ const deduplicatePath = (
   while (matchedPage) {
     counter += 1;
     matchedPage = findPageByIdOrPath(
-      `${folderPath}/copy-${counter}${path}`,
+      joinPath(folderPath, `/copy-${counter}`, path),
       pages
     );
   }
