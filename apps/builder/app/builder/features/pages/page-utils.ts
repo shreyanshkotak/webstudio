@@ -619,3 +619,31 @@ export const instantiateTemplateAsNewPage = (
     folderId: ROOT_FOLDER_ID,
   });
 };
+
+export const reorderTemplatesMutable = (
+  sourceId: string,
+  targetId: string,
+  position: "before" | "after",
+  data: WebstudioData
+) => {
+  const templates = data.pages.pageTemplates;
+  if (templates === undefined || sourceId === targetId) {
+    return;
+  }
+
+  const sourceIndex = templates.findIndex((t) => t.id === sourceId);
+  if (sourceIndex === -1) {
+    return;
+  }
+
+  const [sourceTemplate] = templates.splice(sourceIndex, 1);
+
+  const targetIndex = templates.findIndex((t) => t.id === targetId);
+  if (targetIndex === -1) {
+    templates.push(sourceTemplate);
+    return;
+  }
+
+  const insertIndex = position === "before" ? targetIndex : targetIndex + 1;
+  templates.splice(insertIndex, 0, sourceTemplate);
+};
