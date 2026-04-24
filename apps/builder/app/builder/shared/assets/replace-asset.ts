@@ -66,6 +66,11 @@ export const replaceAsset = async (
             page.marketplace.thumbnailAssetId = newAssetId;
           }
         }
+        for (const template of pages.pageTemplates ?? []) {
+          if (template.meta.socialImageAssetId === oldAssetId) {
+            template.meta.socialImageAssetId = newAssetId;
+          }
+        }
       }
 
       assets.delete(oldAssetId);

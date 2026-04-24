@@ -39,6 +39,7 @@ import {
 } from "./confirmation-dialogs";
 import {
   $editingPageId,
+  $editingTemplateId,
   $isContentMode,
   $isDesignMode,
   $pages,
@@ -426,9 +427,6 @@ const PagesTree = ({
 
 const newPageId = "new-page";
 const newTemplateId = "new-template";
-
-// Separate atom for which template's settings panel is open
-const $editingTemplateId = atom<undefined | string>();
 
 const PageEditor = ({
   editingPageId,

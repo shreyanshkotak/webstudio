@@ -54,6 +54,7 @@ import {
   $assets,
   $authPermit,
   $editingPageId,
+  $editingTemplateId,
   $instances,
   $pages,
   $permissions,
@@ -86,6 +87,7 @@ type AssetUsage =
   | { type: "favicon" }
   | { type: "socialImage"; pageId: string }
   | { type: "marketplaceThumbnail"; pageId: string }
+  | { type: "templateSocialImage"; templateId: string }
   | { type: "prop"; propId: string }
   | { type: "style"; styleDeclKey: string };
 
@@ -153,6 +155,16 @@ export const calculateUsagesByAssetId = ({
           []
         );
         usages.push({ type: "marketplaceThumbnail", pageId: page.id });
+      }
+    }
+    for (const template of pages.pageTemplates ?? []) {
+      if (template.meta.socialImageAssetId) {
+        const usages = mapGetOrInsert(
+          usagesByAsset,
+          template.meta.socialImageAssetId,
+          []
+        );
+        usages.push({ type: "templateSocialImage", templateId: template.id });
       }
     }
   }
@@ -250,6 +262,21 @@ const AssetUsagesList = ({ usages }: { usages: AssetUsage[] }) => {
                 }}
               >
                 Marketplace page thumbnail
+              </button>
+            </li>
+          );
+        }
+        if (usage.type === "templateSocialImage") {
+          return (
+            <li key={index}>
+              <button
+                className={buttonLinkClass}
+                onClick={() => {
+                  setActiveSidebarPanel("pages");
+                  $editingTemplateId.set(usage.templateId);
+                }}
+              >
+                Template social image
               </button>
             </li>
           );

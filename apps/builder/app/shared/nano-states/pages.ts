@@ -8,3 +8,5 @@ export { $pages };
 export const $selectedPageHash = atom<{ hash: string }>({ hash: "" });
 
 export const $editingPageId = atom<undefined | Page["id"]>();
+
+export const $editingTemplateId = atom<undefined | string>();
