@@ -27,6 +27,7 @@ import {
 import { richTextContentTags } from "./content-model";
 import { setIsSubsetOf } from "./shim";
 import { isAttributeNameSafe } from "@webstudio-is/react-sdk";
+import { ROOT_INSTANCE_ID } from "@webstudio-is/sdk";
 import * as csstree from "css-tree";
 import { titleCase } from "title-case";
 
@@ -194,13 +195,19 @@ const classifyRules = (
 ): {
   classRules: Map<string, ParsedStyleDecl[]>;
   nestedClassRules: Map<string, NestedClassRule>;
+  rootRules: ParsedStyleDecl[];
   hasNonClassRules: boolean;
 } => {
   const classRules = new Map<string, ParsedStyleDecl[]>();
   const nestedClassRules = new Map<string, NestedClassRule>();
+  const rootRules: ParsedStyleDecl[] = [];
   let hasNonClassRules = false;
 
   for (const decl of decls) {
+    if (decl.selector === ":root") {
+      rootRules.push(decl);
+      continue;
+    }
     const parsed = parseClassBasedSelector(decl.selector);
     if (parsed !== undefined) {
       const selectorState = parsed.states?.[0];
@@ -229,7 +236,7 @@ const classifyRules = (
       hasNonClassRules = true;
     }
   }
-  return { classRules, nestedClassRules, hasNonClassRules };
+  return { classRules, nestedClassRules, rootRules, hasNonClassRules };
 };
 
 /**
@@ -245,12 +252,20 @@ const buildLeftoverCss = (cssText: string): string => {
   const parts: string[] = [];
 
   /** Re-use parseClassBasedSelector as single source of truth */
-  const isClassBasedSelector = (selector: csstree.CssNode): boolean =>
-    selector.type === "Selector" &&
-    parseClassBasedSelector(csstree.generate(selector)) !== undefined;
+  const isClassBasedSelector = (selector: csstree.CssNode): boolean => {
+    if (selector.type !== "Selector") {
+      return false;
+    }
+    const text = csstree.generate(selector);
+    // :root rules are extracted separately — treat as non-leftover
+    if (text === ":root") {
+      return true;
+    }
+    return parseClassBasedSelector(text) !== undefined;
+  };
 
   /**
-   * Process a Rule: if all selectors are class-based, skip entirely.
+   * Process a Rule: if all selectors are class-based or :root, skip entirely.
    * If none are, keep entirely. If mixed, keep only non-class selectors.
    */
   const getLeftoverRule = (node: csstree.Rule): string | undefined => {
@@ -537,7 +552,7 @@ export const generateFragmentFromHtml = (
 
   // Parse all CSS and classify rules
   const { styles: allDecls } = parseCss(allCssText, allCssVars);
-  const { classRules, nestedClassRules } = classifyRules(allDecls);
+  const { classRules, nestedClassRules, rootRules } = classifyRules(allDecls);
 
   // Track which class names are used by elements — IDs will be assigned later
   const usedClassNames = new Set<string>();
@@ -561,19 +576,32 @@ export const generateFragmentFromHtml = (
     const {
       classRules: tagClassRules,
       nestedClassRules: tagNestedRules,
+      rootRules: tagRootRules,
       hasNonClassRules: tagHasNonClass,
     } = classifyRules(parsedDecls);
 
     if (
       parsedDecls.length === 0 &&
       tagClassRules.size === 0 &&
-      tagNestedRules.size === 0
+      tagNestedRules.size === 0 &&
+      tagRootRules.length === 0
     ) {
       // Unparseable CSS — keep original
       styleTagActions.push({ type: "keep-original" });
-    } else if (tagClassRules.size === 0 && tagNestedRules.size === 0) {
-      // Only non-class rules — keep original
+    } else if (
+      tagClassRules.size === 0 &&
+      tagNestedRules.size === 0 &&
+      tagRootRules.length === 0
+    ) {
+      // Only non-class, non-root element rules — keep original HtmlEmbed
       styleTagActions.push({ type: "keep-original" });
+    } else if (
+      tagClassRules.size === 0 &&
+      tagNestedRules.size === 0 &&
+      !tagHasNonClass
+    ) {
+      // Only :root rules — extracted to ROOT_INSTANCE_ID, skip HtmlEmbed
+      styleTagActions.push({ type: "skip" });
     } else if (!tagHasNonClass) {
       // Only class rules — also check for unsupported media like @media print
       const leftover = buildLeftoverCss(text);
@@ -1030,6 +1058,25 @@ export const generateFragmentFromHtml = (
     }
   }
 
+  // Inject :root styles as a local style source on ROOT_INSTANCE_ID
+  if (rootRules.length > 0) {
+    const rootStyleSourceId = getNewId();
+    styleSources.push({ type: "local", id: rootStyleSourceId });
+    styleSourceSelections.push({
+      instanceId: ROOT_INSTANCE_ID,
+      values: [rootStyleSourceId],
+    });
+    for (const decl of rootRules) {
+      styles.push({
+        styleSourceId: rootStyleSourceId,
+        breakpointId: getBaseBreakpointId(),
+        property: camelCaseProperty(decl.property),
+        value: decl.value,
+        ...(decl.state ? { state: decl.state } : {}),
+      });
+    }
+  }
+
   // Create style source selections for instances that use tokens
   const selectionsByInstance = new Map(
     styleSourceSelections.map((sel) => [sel.instanceId, sel])
@@ -1041,7 +1088,7 @@ export const generateFragmentFromHtml = (
     if (tokenIds.length > 0) {
       const existingSelection = selectionsByInstance.get(instanceId);
       if (existingSelection) {
-        existingSelection.values.push(...tokenIds);
+        existingSelection.values = [...tokenIds, ...existingSelection.values];
       } else {
         const newSelection: StyleSourceSelection = {
           instanceId,
