@@ -887,13 +887,16 @@ export const generateFragmentFromHtml = (
         }
       }
     }
+    let spaceAttachedToPrev = false;
     for (let index = 0; index < node.childNodes.length; index += 1) {
       const childNode = node.childNodes[index];
       if (defaultTreeAdapter.isElementNode(childNode)) {
         const lastChild = instance.children.at(-1);
         const nextPreserveLeadingSpace =
+          !spaceAttachedToPrev &&
           instance.children.length > 0 &&
           !(lastChild?.type === "text" && lastChild.value.endsWith(" "));
+        spaceAttachedToPrev = false;
         const child = convertElementToInstance(childNode, {
           preserveLeadingSpace: nextPreserveLeadingSpace,
         });
@@ -902,10 +905,40 @@ export const generateFragmentFromHtml = (
         }
       }
       if (defaultTreeAdapter.isTextNode(childNode)) {
-        // trim spaces around rich text
-        // do not for code
+        // trim spaces around rich text, do not for code
         if (spaceRegex.test(childNode.value) && node.tagName !== "code") {
+          // Skip whitespace at start or end of parent
           if (index === 0 || index === node.childNodes.length - 1) {
+            continue;
+          }
+          const prevChild = node.childNodes[index - 1];
+          const nextChild = node.childNodes[index + 1];
+          const prevIsElement = defaultTreeAdapter.isElementNode(prevChild);
+          const nextIsElement = defaultTreeAdapter.isElementNode(nextChild);
+
+          // In rich-text contexts, attach whitespace between two sibling elements
+          // to the previous element instead of creating a separate text node.
+          // This avoids a standalone space child that would prevent the next element
+          // from being recognized as the last child for text-content control.
+          if (
+            prevIsElement &&
+            nextIsElement &&
+            !hasNonRichTextContent &&
+            instance.children.length > 0
+          ) {
+            const lastChild = instance.children.at(-1);
+            if (lastChild?.type === "id") {
+              const prevInstanceId = lastChild.value;
+              const prevInstance = instances.get(prevInstanceId);
+              if (prevInstance && prevInstance.children.length > 0) {
+                const prevLastChild = prevInstance.children.at(-1);
+                if (prevLastChild?.type === "text") {
+                  prevLastChild.value += " ";
+                  spaceAttachedToPrev = true;
+                  continue;
+                }
+              }
+            }
             continue;
           }
         }
