@@ -15,6 +15,7 @@ import {
   StyleSources,
   type StyleSource,
   Styles,
+  getHomePage,
 } from "@webstudio-is/sdk";
 import {
   findCycles,
@@ -119,10 +120,10 @@ export const createBuildPatchUpdate = async ({
       if (namespace === "pages") {
         const pages = buildData.pages ?? parsePages(build.pages);
         const currentSocialImageAssetId =
-          pages.homePage.meta.socialImageAssetId;
+          getHomePage(pages).meta.socialImageAssetId;
         buildData.pages = applyPatches(pages, patches);
-        const newSocialImageAssetId =
-          buildData.pages.homePage.meta.socialImageAssetId;
+        const newSocialImageAssetId = getHomePage(buildData.pages).meta
+          .socialImageAssetId;
         if (currentSocialImageAssetId !== newSocialImageAssetId) {
           previewImageAssetId = newSocialImageAssetId || null;
         }
