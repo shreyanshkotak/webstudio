@@ -584,6 +584,7 @@ const TemplateItem = ({
   template,
   isSelected,
   isEditing,
+  canManageTemplates,
   onSelect,
   onEdit,
   onCreatePage,
@@ -591,6 +592,7 @@ const TemplateItem = ({
   template: PageTemplate;
   isSelected: boolean;
   isEditing: boolean;
+  canManageTemplates: boolean;
   onSelect: (id: string) => void;
   onEdit: (id: string | undefined) => void;
   onCreatePage: (id: string) => void;
@@ -607,12 +609,12 @@ const TemplateItem = ({
   return (
     <TreeNode
       level={1}
-      isSelected={isSelected}
+      isSelected={canManageTemplates && isSelected}
       buttonProps={Object.assign(
-        { onClick: () => onSelect(template.id) },
+        canManageTemplates ? { onClick: () => onSelect(template.id) } : {},
         { "data-template-id": template.id }
       )}
-      actionCount={2}
+      actionCount={canManageTemplates ? 2 : 1}
       action={
         <Flex align="center" gap={2}>
           <Tooltip content="Create page from template" disableHoverableContent>
@@ -623,24 +625,28 @@ const TemplateItem = ({
               icon={<PlusIcon />}
             />
           </Tooltip>
-          <Tooltip
-            content={
-              isEditing ? "Close template settings" : "Open template settings"
-            }
-            disableHoverableContent
-          >
-            <SmallIconButton
-              tabIndex={-1}
-              aria-label={
+          {canManageTemplates && (
+            <Tooltip
+              content={
                 isEditing ? "Close template settings" : "Open template settings"
               }
-              state={isSelected ? "open" : undefined}
-              onClick={() => onEdit(isEditing ? undefined : template.id)}
-              ref={buttonRef}
-              aria-current={isEditing}
-              icon={isEditing ? <ChevronRightIcon /> : <EllipsesIcon />}
-            />
-          </Tooltip>
+              disableHoverableContent
+            >
+              <SmallIconButton
+                tabIndex={-1}
+                aria-label={
+                  isEditing
+                    ? "Close template settings"
+                    : "Open template settings"
+                }
+                state={isSelected ? "open" : undefined}
+                onClick={() => onEdit(isEditing ? undefined : template.id)}
+                ref={buttonRef}
+                aria-current={isEditing}
+                icon={isEditing ? <ChevronRightIcon /> : <EllipsesIcon />}
+              />
+            </Tooltip>
+          )}
         </Flex>
       }
     >
@@ -653,12 +659,14 @@ const TemplatesSection = ({
   selectedPageId,
   onSelectTemplate,
   editingTemplateId,
+  canManageTemplates,
   onEditTemplate,
   onCreatePageFromTemplate,
 }: {
   selectedPageId: string;
   onSelectTemplate: (id: string) => void;
   editingTemplateId: string | undefined;
+  canManageTemplates: boolean;
   onEditTemplate: (id: string | undefined) => void;
   onCreatePageFromTemplate: (id: string) => void;
 }) => {
@@ -679,13 +687,16 @@ const TemplatesSection = ({
           isExpanded={undefined}
           isLastChild={index === templates.length - 1}
           data={template}
-          canDrag={() => true}
+          canDrag={() => canManageTemplates}
           dropTarget={
-            dropInfo?.targetId === template.id
+            canManageTemplates && dropInfo?.targetId === template.id
               ? dropInfo.treeDropTarget
               : undefined
           }
           onDropTargetChange={(treeDropTarget) => {
+            if (canManageTemplates === false) {
+              return;
+            }
             if (treeDropTarget) {
               $templateDropInfo.set({
                 targetId: template.id,
@@ -696,6 +707,9 @@ const TemplatesSection = ({
             }
           }}
           onDrop={(draggedTemplate) => {
+            if (canManageTemplates === false) {
+              return;
+            }
             const info = $templateDropInfo.get();
             if (info === undefined) {
               return;
@@ -718,6 +732,7 @@ const TemplatesSection = ({
             template={template}
             isSelected={template.id === selectedPageId}
             isEditing={editingTemplateId === template.id}
+            canManageTemplates={canManageTemplates}
             onSelect={onSelectTemplate}
             onEdit={onEditTemplate}
             onCreatePage={onCreatePageFromTemplate}
@@ -809,6 +824,7 @@ export const PagesPanel = ({ onClose }: { onClose: () => void }) => {
   const editingTemplateItemId = useStore($editingTemplateId);
   const creatingFromTemplateId = useStore($creatingPageFromTemplateId);
   const pages = useStore($pages);
+  const isContentMode = useStore($isContentMode);
   const isDesignMode = useStore($isDesignMode);
   const containerRef = useRef<HTMLDivElement>(null);
   const [pageIdToDelete, setPageIdToDelete] = useState<string | undefined>();
@@ -822,6 +838,10 @@ export const PagesPanel = ({ onClose }: { onClose: () => void }) => {
   if (currentPage === undefined || pages === undefined) {
     return;
   }
+
+  const templates = pages.pageTemplates ?? [];
+  const showTemplatesSection =
+    isDesignMode || (isContentMode && templates.length > 0);
 
   const handlePageDeleteConfirm = () => {
     if (pageIdToDelete) {
@@ -931,49 +951,69 @@ export const PagesPanel = ({ onClose }: { onClose: () => void }) => {
         </div>
       </PageContextMenu>
 
-      {isDesignMode && (
+      {showTemplatesSection && (
         <>
           <Separator />
           <PanelTitle
             suffix={
-              <Tooltip content="New template" side="bottom">
-                <Button
-                  onClick={() => {
-                    $editingTemplateId.set(
-                      editingTemplateItemId === newTemplateId
-                        ? undefined
-                        : newTemplateId
-                    );
-                  }}
-                  aria-label="New template"
-                  prefix={<NewPageIcon />}
-                  color="ghost"
-                />
-              </Tooltip>
+              isDesignMode && (
+                <Tooltip content="New template" side="bottom">
+                  <Button
+                    onClick={() => {
+                      $editingTemplateId.set(
+                        editingTemplateItemId === newTemplateId
+                          ? undefined
+                          : newTemplateId
+                      );
+                    }}
+                    aria-label="New template"
+                    prefix={<NewPageIcon />}
+                    color="ghost"
+                  />
+                </Tooltip>
+              )
             }
           >
             Page Templates
           </PanelTitle>
-          <TemplateContextMenu onRequestDeleteTemplate={setTemplateIdToDelete}>
+          {isDesignMode ? (
+            <TemplateContextMenu
+              onRequestDeleteTemplate={setTemplateIdToDelete}
+            >
+              <div>
+                <TemplatesSection
+                  selectedPageId={currentPage.id}
+                  onSelectTemplate={(id) => {
+                    selectPage(id);
+                  }}
+                  editingTemplateId={editingTemplateItemId}
+                  canManageTemplates={true}
+                  onEditTemplate={(id) => {
+                    if (id) {
+                      selectPage(id);
+                    }
+                    $editingTemplateId.set(id);
+                  }}
+                  onCreatePageFromTemplate={(id) => {
+                    $creatingPageFromTemplateId.set(id);
+                  }}
+                />
+              </div>
+            </TemplateContextMenu>
+          ) : (
             <div>
               <TemplatesSection
                 selectedPageId={currentPage.id}
-                onSelectTemplate={(id) => {
-                  selectPage(id);
-                }}
+                onSelectTemplate={() => {}}
                 editingTemplateId={editingTemplateItemId}
-                onEditTemplate={(id) => {
-                  if (id) {
-                    selectPage(id);
-                  }
-                  $editingTemplateId.set(id);
-                }}
+                canManageTemplates={false}
+                onEditTemplate={() => {}}
                 onCreatePageFromTemplate={(id) => {
                   $creatingPageFromTemplateId.set(id);
                 }}
               />
             </div>
-          </TemplateContextMenu>
+          )}
         </>
       )}
 

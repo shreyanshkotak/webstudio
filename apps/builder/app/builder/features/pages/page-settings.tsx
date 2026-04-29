@@ -604,7 +604,7 @@ const fieldsetStyle = css({
   },
 });
 
-const isEditorEditablePagePath = (path: string) => {
+export const isEditorEditablePagePath = (path: string) => {
   return (
     isPathnamePattern(path) === false &&
     path.includes(":") === false &&
@@ -712,11 +712,13 @@ export const FormFields = ({
   errors,
   values,
   onChange,
+  isEditorContext = false,
 }: {
   autoSelect?: boolean;
   errors: Errors;
   values: Values;
   onChange: OnChange;
+  isEditorContext?: boolean;
 }) => {
   const project = useStore($project);
   const fieldIds = useIds(fieldNames);
@@ -748,9 +750,9 @@ export const FormFields = ({
   const excludePageFromSearch = Boolean(
     computeExpression(values.excludePageFromSearch, variableValues)
   );
-  const showDesignerFields = isContentMode === false;
+  const isEditorPageSettings = isContentMode || isEditorContext;
+  const showDesignerFields = !isEditorPageSettings;
   const showBindingControls = isDesignMode;
-  const isEditorPageSettings = isContentMode;
   const canEditPath =
     showDesignerFields || isEditorEditablePagePath(values.path);
   const canEditTitle = showDesignerFields || isLiteralExpression(values.title);

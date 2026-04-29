@@ -31,7 +31,11 @@ import {
   Text,
 } from "@webstudio-is/design-system";
 import { CopyIcon, TrashIcon } from "@webstudio-is/icons";
-import { $isDesignMode, $publishedOrigin } from "~/shared/nano-states";
+import {
+  $isContentMode,
+  $isDesignMode,
+  $publishedOrigin,
+} from "~/shared/nano-states";
 import { $assets, $instances, $pages } from "~/shared/sync/data-stores";
 import { serverSyncStore } from "~/shared/sync/sync-stores";
 import { selectInstance } from "~/shared/nano-states";
@@ -56,6 +60,7 @@ import {
 import { Form } from "./form";
 import {
   fieldDefaultValues,
+  isEditorEditablePagePath,
   validateValues,
   updatePage,
   FormFields,
@@ -693,6 +698,37 @@ const toFormValuesFromTemplate = (
   customMetas: template.meta.custom ?? fieldDefaultValues.customMetas,
 });
 
+const getEditorCreatePageValues = (
+  initialValues: Values,
+  values: Values
+): Partial<Values> => {
+  const allowedValues: Partial<Values> = {
+    name: values.name,
+  };
+
+  if (isEditorEditablePagePath(initialValues.path)) {
+    allowedValues.path = values.path;
+  }
+  if (isLiteralExpression(initialValues.title)) {
+    allowedValues.title = values.title;
+  }
+  if (isLiteralExpression(initialValues.description)) {
+    allowedValues.description = values.description;
+  }
+  if (isLiteralExpression(initialValues.excludePageFromSearch)) {
+    allowedValues.excludePageFromSearch = values.excludePageFromSearch;
+  }
+  if (isLiteralExpression(initialValues.language)) {
+    allowedValues.language = values.language;
+  }
+  if (isLiteralExpression(initialValues.socialImageUrl)) {
+    allowedValues.socialImageUrl = values.socialImageUrl;
+    allowedValues.socialImageAssetId = values.socialImageAssetId;
+  }
+
+  return allowedValues;
+};
+
 export const CreatePageFromTemplateSettings = ({
   templateId,
   onSuccess,
@@ -701,10 +737,11 @@ export const CreatePageFromTemplateSettings = ({
   onSuccess: (pageId: Page["id"]) => void;
 }) => {
   const pages = useStore($pages);
+  const isContentMode = useStore($isContentMode);
   const template = pages?.pageTemplates?.find((t) => t.id === templateId);
   const { variableValues } = useStore($pageRootScope);
 
-  const [values, setValues] = useState<Values>(() =>
+  const [initialValues] = useState<Values>(() =>
     template
       ? toFormValuesFromTemplate(template, pages)
       : {
@@ -712,6 +749,7 @@ export const CreatePageFromTemplateSettings = ({
           path: nameToPath(pages, fieldDefaultValues.name),
         }
   );
+  const [values, setValues] = useState<Values>(initialValues);
 
   const errors = validateValues(pages, undefined, values, variableValues);
 
@@ -723,7 +761,12 @@ export const CreatePageFromTemplateSettings = ({
         folderId: ROOT_FOLDER_ID,
       });
       if (newPageId) {
-        updatePage(newPageId, values);
+        updatePage(
+          newPageId,
+          isContentMode
+            ? getEditorCreatePageValues(initialValues, values)
+            : values
+        );
         onSuccess(newPageId);
       }
     }
@@ -753,6 +796,7 @@ export const CreatePageFromTemplateSettings = ({
           autoSelect
           errors={errors}
           values={values}
+          isEditorContext={isContentMode}
           onChange={(change) => {
             setValues((prev) => {
               const next = { ...prev, [change.field]: change.value };
