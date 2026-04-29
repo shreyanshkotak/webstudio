@@ -69,6 +69,7 @@ import {
   $publishedOrigin,
   $permissions,
   $isDesignMode,
+  $isContentMode,
 } from "~/shared/nano-states";
 import { $assets } from "~/shared/sync/data-stores";
 import { $project } from "~/shared/sync/data-stores";
@@ -85,6 +86,7 @@ import { ImageControl } from "~/shared/project-settings";
 import { useEffectEvent } from "~/shared/hook-utils/effect-event";
 import {
   compilePathnamePattern,
+  isPathnamePattern,
   tokenizePathnamePattern,
   validatePathnamePattern,
 } from "~/builder/shared/url-pattern";
@@ -314,9 +316,11 @@ const PathField = ({
   errors,
   value,
   onChange,
+  disabled = false,
 }: {
   errors?: string[];
   value: string;
+  disabled?: boolean;
   onChange: (value: string) => void;
 }) => {
   const { allowDynamicData } = useStore($permissions);
@@ -369,6 +373,7 @@ const PathField = ({
           color={errors && "error"}
           id={id}
           placeholder="/about"
+          disabled={disabled}
           value={value}
           onChange={(event) => onChange(event.target.value)}
         />
@@ -380,10 +385,14 @@ const PathField = ({
 const StatusField = ({
   errors,
   value = `undefined`,
+  disabled = false,
+  showBindingControls = true,
   onChange,
 }: {
   errors?: string[];
   value: undefined | string;
+  disabled?: boolean;
+  showBindingControls?: boolean;
   onChange: (value: undefined | string) => void;
 }) => {
   const id = useId();
@@ -416,23 +425,25 @@ const StatusField = ({
         </Tooltip>
       </Flex>
       <BindingControl>
-        <BindingPopover
-          scope={scope}
-          aliases={aliases}
-          variant={isLiteralExpression(value) ? "default" : "bound"}
-          value={value}
-          onChange={onChange}
-          onRemove={(evaluatedValue) =>
-            onChange(JSON.stringify(evaluatedValue ?? ""))
-          }
-        />
+        {showBindingControls && (
+          <BindingPopover
+            scope={scope}
+            aliases={aliases}
+            variant={isLiteralExpression(value) ? "default" : "bound"}
+            value={value}
+            onChange={onChange}
+            onRemove={(evaluatedValue) =>
+              onChange(JSON.stringify(evaluatedValue ?? ""))
+            }
+          />
+        )}
         <InputErrorsTooltip errors={errors}>
           <InputField
             inputMode="numeric"
             color={errors && "error"}
             id={id}
             placeholder="200"
-            disabled={isLiteralExpression(value) === false}
+            disabled={disabled || isLiteralExpression(value) === false}
             value={String(computeExpression(value, variableValues) ?? "")}
             onChange={(event) => {
               if (event.target.value === "") {
@@ -456,10 +467,14 @@ const StatusField = ({
 const RedirectField = ({
   errors,
   value,
+  disabled = false,
+  showBindingControls = true,
   onChange,
 }: {
   errors?: string[];
   value: string;
+  disabled?: boolean;
+  showBindingControls?: boolean;
   onChange: (value: string) => void;
 }) => {
   const id = useId();
@@ -482,22 +497,24 @@ const RedirectField = ({
       </Flex>
 
       <BindingControl>
-        <BindingPopover
-          scope={scope}
-          aliases={aliases}
-          variant={isLiteralExpression(value) ? "default" : "bound"}
-          value={value}
-          onChange={onChange}
-          onRemove={(evaluatedValue) =>
-            onChange(JSON.stringify(evaluatedValue ?? ""))
-          }
-        />
+        {showBindingControls && (
+          <BindingPopover
+            scope={scope}
+            aliases={aliases}
+            variant={isLiteralExpression(value) ? "default" : "bound"}
+            value={value}
+            onChange={onChange}
+            onRemove={(evaluatedValue) =>
+              onChange(JSON.stringify(evaluatedValue ?? ""))
+            }
+          />
+        )}
         <InputErrorsTooltip errors={errors}>
           <InputField
             color={errors && "error"}
             id={id}
             placeholder="/another-path"
-            disabled={isLiteralExpression(value) === false}
+            disabled={disabled || isLiteralExpression(value) === false}
             value={String(computeExpression(value, variableValues))}
             onChange={(event) => onChange(JSON.stringify(event.target.value))}
           />
@@ -510,10 +527,14 @@ const RedirectField = ({
 const LanguageField = ({
   errors,
   value,
+  disabled = false,
+  showBindingControls = true,
   onChange,
 }: {
   errors?: string[];
   value: string;
+  disabled?: boolean;
+  showBindingControls?: boolean;
   onChange: (value: string) => void;
 }) => {
   const id = useId();
@@ -522,22 +543,24 @@ const LanguageField = ({
     <Grid gap={1}>
       <Label htmlFor={id}>Language</Label>
       <BindingControl>
-        <BindingPopover
-          scope={scope}
-          aliases={aliases}
-          variant={isLiteralExpression(value) ? "default" : "bound"}
-          value={value}
-          onChange={onChange}
-          onRemove={(evaluatedValue) =>
-            onChange(JSON.stringify(evaluatedValue ?? ""))
-          }
-        />
+        {showBindingControls && (
+          <BindingPopover
+            scope={scope}
+            aliases={aliases}
+            variant={isLiteralExpression(value) ? "default" : "bound"}
+            value={value}
+            onChange={onChange}
+            onRemove={(evaluatedValue) =>
+              onChange(JSON.stringify(evaluatedValue ?? ""))
+            }
+          />
+        )}
         <InputErrorsTooltip errors={errors}>
           <InputField
             color={errors && "error"}
             id={id}
             placeholder="en-US"
-            disabled={isLiteralExpression(value) === false}
+            disabled={disabled || isLiteralExpression(value) === false}
             value={String(computeExpression(value, variableValues))}
             onChange={(event) => onChange(JSON.stringify(event.target.value))}
           />
@@ -580,6 +603,14 @@ const fieldsetStyle = css({
     opacity: 0.4,
   },
 });
+
+const isEditorEditablePagePath = (path: string) => {
+  return (
+    isPathnamePattern(path) === false &&
+    path.includes(":") === false &&
+    path.includes("*") === false
+  );
+};
 
 const MarketplaceSection = ({
   values,
@@ -693,6 +724,8 @@ export const FormFields = ({
   const pages = useStore($pages);
   const { allowDynamicData } = useStore($permissions);
   const { variableValues, scope, aliases } = useStore($pageRootScope);
+  const isDesignMode = useStore($isDesignMode);
+  const isContentMode = useStore($isContentMode);
 
   const pageUrl = usePageUrl(values);
 
@@ -715,6 +748,20 @@ export const FormFields = ({
   const excludePageFromSearch = Boolean(
     computeExpression(values.excludePageFromSearch, variableValues)
   );
+  const showDesignerFields = isContentMode === false;
+  const showBindingControls = isDesignMode;
+  const isEditorPageSettings = isContentMode;
+  const canEditPath =
+    showDesignerFields || isEditorEditablePagePath(values.path);
+  const canEditTitle = showDesignerFields || isLiteralExpression(values.title);
+  const canEditDescription =
+    showDesignerFields || isLiteralExpression(values.description);
+  const canEditExcludePageFromSearch =
+    showDesignerFields || isLiteralExpression(values.excludePageFromSearch);
+  const canEditLanguage =
+    showDesignerFields || isLiteralExpression(values.language);
+  const canEditSocialImage =
+    showDesignerFields || isLiteralExpression(values.socialImageUrl);
 
   // Check if any redirect matches this page's path
   const fullPagePath = computePagePath(values, pages);
@@ -811,6 +858,7 @@ export const FormFields = ({
                 <>
                   <Checkbox
                     id={fieldIds.isHomePage}
+                    disabled={isEditorPageSettings}
                     onCheckedChange={() => {
                       onChange({ field: "path", value: "" });
                       onChange({
@@ -837,21 +885,34 @@ export const FormFields = ({
             <PathField
               errors={errors.path}
               value={values.path}
-              onChange={(value) => onChange({ field: "path", value })}
+              disabled={canEditPath === false}
+              onChange={(value) => {
+                if (
+                  isEditorPageSettings &&
+                  isEditorEditablePagePath(value) === false
+                ) {
+                  return;
+                }
+                onChange({ field: "path", value });
+              }}
             />
           )}
 
           <StatusField
             errors={errors.status}
             value={values.status}
+            disabled={isEditorPageSettings}
+            showBindingControls={showBindingControls}
             onChange={(value) => onChange({ field: "status", value })}
           />
           <RedirectField
             errors={errors.redirect}
             value={values.redirect}
+            disabled={isEditorPageSettings}
+            showBindingControls={showBindingControls}
             onChange={(value) => onChange({ field: "redirect", value })}
           />
-          {allowDynamicData === false && (
+          {showDesignerFields && allowDynamicData === false && (
             <PanelBanner>
               <Text>
                 Dynamic routing and redirect are part of the CMS functionality.
@@ -880,7 +941,7 @@ export const FormFields = ({
                 docType.toLocaleUpperCase()
               }
               value={values.documentType}
-              disabled={values.isHomePage}
+              disabled={values.isHomePage || isEditorPageSettings}
               onChange={(value) => {
                 onChange({
                   field: "documentType",
@@ -919,33 +980,38 @@ export const FormFields = ({
             <Grid gap={1}>
               <Label htmlFor={fieldIds.title}>Title</Label>
               <BindingControl>
-                <BindingPopover
-                  scope={scope}
-                  aliases={aliases}
-                  variant={
-                    isLiteralExpression(values.title) ? "default" : "bound"
-                  }
-                  value={values.title}
-                  onChange={(value) => {
-                    onChange({
-                      field: "title",
-                      value,
-                    });
-                  }}
-                  onRemove={(evaluatedValue) => {
-                    onChange({
-                      field: "title",
-                      value: JSON.stringify(evaluatedValue ?? ""),
-                    });
-                  }}
-                />
+                {showBindingControls && (
+                  <BindingPopover
+                    scope={scope}
+                    aliases={aliases}
+                    variant={
+                      isLiteralExpression(values.title) ? "default" : "bound"
+                    }
+                    value={values.title}
+                    onChange={(value) => {
+                      onChange({
+                        field: "title",
+                        value,
+                      });
+                    }}
+                    onRemove={(evaluatedValue) => {
+                      onChange({
+                        field: "title",
+                        value: JSON.stringify(evaluatedValue ?? ""),
+                      });
+                    }}
+                  />
+                )}
                 <InputErrorsTooltip errors={errors.title}>
                   <InputField
                     color={errors.title && "error"}
                     id={fieldIds.title}
                     name="title"
                     placeholder="My awesome project - About"
-                    disabled={isLiteralExpression(values.title) === false}
+                    disabled={
+                      canEditTitle === false ||
+                      isLiteralExpression(values.title) === false
+                    }
                     value={title}
                     onChange={(event) => {
                       onChange({
@@ -961,34 +1027,39 @@ export const FormFields = ({
             <Grid gap={1}>
               <Label htmlFor={fieldIds.description}>Description</Label>
               <BindingControl>
-                <BindingPopover
-                  scope={scope}
-                  aliases={aliases}
-                  variant={
-                    isLiteralExpression(values.description)
-                      ? "default"
-                      : "bound"
-                  }
-                  value={values.description}
-                  onChange={(value) => {
-                    onChange({
-                      field: "description",
-                      value,
-                    });
-                  }}
-                  onRemove={(evaluatedValue) => {
-                    onChange({
-                      field: "description",
-                      value: JSON.stringify(evaluatedValue ?? ""),
-                    });
-                  }}
-                />
+                {showBindingControls && (
+                  <BindingPopover
+                    scope={scope}
+                    aliases={aliases}
+                    variant={
+                      isLiteralExpression(values.description)
+                        ? "default"
+                        : "bound"
+                    }
+                    value={values.description}
+                    onChange={(value) => {
+                      onChange({
+                        field: "description",
+                        value,
+                      });
+                    }}
+                    onRemove={(evaluatedValue) => {
+                      onChange({
+                        field: "description",
+                        value: JSON.stringify(evaluatedValue ?? ""),
+                      });
+                    }}
+                  />
+                )}
                 <InputErrorsTooltip errors={errors.description}>
                   <TextArea
                     color={errors.description ? "error" : undefined}
                     id={fieldIds.description}
                     name="description"
-                    disabled={isLiteralExpression(values.description) === false}
+                    disabled={
+                      canEditDescription === false ||
+                      isLiteralExpression(values.description) === false
+                    }
                     value={description}
                     onChange={(value) => {
                       onChange({
@@ -1009,34 +1080,33 @@ export const FormFields = ({
                   align={"center"}
                   css={{ py: theme.spacing[2] }}
                 >
-                  <BindingPopover
-                    scope={scope}
-                    aliases={aliases}
-                    variant={
-                      isLiteralExpression(values.excludePageFromSearch)
-                        ? "default"
-                        : "bound"
-                    }
-                    value={values.excludePageFromSearch}
-                    onChange={(value) => {
-                      onChange({
-                        field: "excludePageFromSearch",
-                        value,
-                      });
-                    }}
-                    onRemove={(evaluatedValue) => {
-                      onChange({
-                        field: "excludePageFromSearch",
-                        value: JSON.stringify(evaluatedValue ?? ""),
-                      });
-                    }}
-                  />
+                  {showBindingControls && (
+                    <BindingPopover
+                      scope={scope}
+                      aliases={aliases}
+                      variant={
+                        isLiteralExpression(values.excludePageFromSearch)
+                          ? "default"
+                          : "bound"
+                      }
+                      value={values.excludePageFromSearch}
+                      onChange={(value) => {
+                        onChange({
+                          field: "excludePageFromSearch",
+                          value,
+                        });
+                      }}
+                      onRemove={(evaluatedValue) => {
+                        onChange({
+                          field: "excludePageFromSearch",
+                          value: JSON.stringify(evaluatedValue ?? ""),
+                        });
+                      }}
+                    />
+                  )}
                   <Checkbox
                     id={fieldIds.excludePageFromSearch}
-                    disabled={
-                      isLiteralExpression(values.excludePageFromSearch) ===
-                      false
-                    }
+                    disabled={canEditExcludePageFromSearch === false}
                     checked={excludePageFromSearch}
                     onCheckedChange={() => {
                       const newValue = !excludePageFromSearch;
@@ -1059,6 +1129,8 @@ export const FormFields = ({
             <LanguageField
               errors={errors.language}
               value={values.language}
+              disabled={canEditLanguage === false}
+              showBindingControls={showBindingControls}
               onChange={(value) => onChange({ field: "language", value })}
             />
           </Grid>
@@ -1079,32 +1151,35 @@ export const FormFields = ({
               image are 1200x630 px or larger with a 1.91:1 aspect ratio.
             </Text>
             <BindingControl>
-              <BindingPopover
-                scope={scope}
-                aliases={aliases}
-                variant={
-                  isLiteralExpression(values.socialImageUrl)
-                    ? "default"
-                    : "bound"
-                }
-                value={values.socialImageUrl}
-                onChange={(value) => {
-                  onChange({
-                    field: "socialImageUrl",
-                    value,
-                  });
-                }}
-                onRemove={(evaluatedValue) => {
-                  onChange({
-                    field: "socialImageUrl",
-                    value: JSON.stringify(evaluatedValue ?? ""),
-                  });
-                }}
-              />
+              {showBindingControls && (
+                <BindingPopover
+                  scope={scope}
+                  aliases={aliases}
+                  variant={
+                    isLiteralExpression(values.socialImageUrl)
+                      ? "default"
+                      : "bound"
+                  }
+                  value={values.socialImageUrl}
+                  onChange={(value) => {
+                    onChange({
+                      field: "socialImageUrl",
+                      value,
+                    });
+                  }}
+                  onRemove={(evaluatedValue) => {
+                    onChange({
+                      field: "socialImageUrl",
+                      value: JSON.stringify(evaluatedValue ?? ""),
+                    });
+                  }}
+                />
+              )}
               <InputErrorsTooltip errors={errors.socialImageUrl}>
                 <InputField
                   placeholder="https://www.url.com"
                   disabled={
+                    canEditSocialImage === false ||
                     isLiteralExpression(values.socialImageUrl) === false
                   }
                   color={errors.socialImageUrl && "error"}
@@ -1133,6 +1208,7 @@ export const FormFields = ({
                   id={fieldIds.socialImageAssetId}
                   css={{ justifySelf: "start" }}
                   color="neutral"
+                  disabled={canEditSocialImage === false}
                 >
                   Choose Image From Assets
                 </Button>
@@ -1142,6 +1218,7 @@ export const FormFields = ({
             {socialImageAsset?.type === "image" && (
               <ImageInfo
                 asset={socialImageAsset}
+                disabled={canEditSocialImage === false}
                 onDelete={() => {
                   onChange({
                     field: "socialImageAssetId",
@@ -1169,6 +1246,8 @@ export const FormFields = ({
             <div>
               <CustomMetadata
                 customMetas={values.customMetas}
+                disabled={isEditorPageSettings}
+                showBindingControls={showBindingControls}
                 onChange={(customMetas) => {
                   onChange({
                     field: "customMetas",
@@ -1180,14 +1259,15 @@ export const FormFields = ({
           </InputErrorsTooltip>
         </fieldset>
 
-        {(project?.marketplaceApprovalStatus === "PENDING" ||
-          project?.marketplaceApprovalStatus === "APPROVED" ||
-          project?.marketplaceApprovalStatus === "REJECTED") && (
-          <>
-            <Separator />
-            <MarketplaceSection values={values} onChange={onChange} />
-          </>
-        )}
+        {showDesignerFields &&
+          (project?.marketplaceApprovalStatus === "PENDING" ||
+            project?.marketplaceApprovalStatus === "APPROVED" ||
+            project?.marketplaceApprovalStatus === "REJECTED") && (
+            <>
+              <Separator />
+              <MarketplaceSection values={values} onChange={onChange} />
+            </>
+          )}
 
         <Box css={{ height: theme.spacing[10] }} />
       </ScrollArea>
@@ -1591,9 +1671,7 @@ const PageSettingsView = ({
         Page Settings
       </DialogTitle>
       <Form onSubmit={onClose} ref={containerRef} data-floating-panel-container>
-        <fieldset style={{ display: "contents" }} disabled={!isDesignMode}>
-          {children}
-        </fieldset>
+        {children}
       </Form>
     </>
   );
