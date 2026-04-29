@@ -1,7 +1,6 @@
 import { computed } from "nanostores";
 import { nanoid } from "nanoid";
 import slugify from "slugify";
-import { createRootFolder } from "@webstudio-is/project-build";
 import {
   type Page,
   type PageTemplate,
@@ -11,25 +10,22 @@ import {
   findPageByIdOrPath,
   getPagePath,
   findParentFolderByChildId,
+  getAllFolders,
+  getAllPages,
+  getFolderById,
   encodeDataSourceVariable,
-  ROOT_FOLDER_ID,
-  isRootFolder,
   ROOT_INSTANCE_ID,
   systemParameter,
   SYSTEM_VARIABLE_ID,
 } from "@webstudio-is/sdk";
-import { removeByMutable } from "~/shared/array-utils";
 import {
   deleteInstanceMutable,
   extractWebstudioFragment,
   insertWebstudioFragmentCopy,
   updateWebstudioData,
 } from "~/shared/instance-utils";
-import {
-  $dataSources,
-  $pages,
-  $variableValuesByInstanceSelector,
-} from "~/shared/nano-states";
+import { $variableValuesByInstanceSelector } from "~/shared/nano-states";
+import { $dataSources, $pages } from "~/shared/sync/data-stores";
 import {
   insertPageCopyMutable,
   insertPageFromTemplateMutable,
@@ -38,8 +34,8 @@ import {
   $selectedPage,
   getInstanceKey,
   getInstancePath,
-  selectPage,
-} from "~/shared/awareness";
+} from "~/shared/nano-states";
+import { selectPage } from "~/shared/nano-states";
 
 export const nameToPath = (pages: Pages | undefined, name: string) => {
   if (name === "") {
@@ -68,15 +64,10 @@ export const nameToPath = (pages: Pages | undefined, name: string) => {
  */
 export const cleanupChildRefsMutable = (
   id: Folder["id"] | Page["id"],
-  folders: Array<Folder>
+  folders: Pages["folders"]
 ) => {
-  for (const folder of folders) {
-    const index = folder.children.indexOf(id);
-    if (index !== -1) {
-      // Not exiting here just to be safe and check all folders even though it should be impossible
-      // to have the same id in multiple folders.
-      folder.children.splice(index, 1);
-    }
+  for (const folder of Array.from(folders.values())) {
+    folder.children = folder.children.filter((childId) => childId !== id);
   }
 };
 
@@ -85,26 +76,47 @@ export const cleanupChildRefsMutable = (
  * we consider it orphaned due to collaborative changes and we put it into the root folder.
  */
 export const reparentOrphansMutable = (pages: Pages) => {
-  const children = [ROOT_FOLDER_ID];
-  for (const folder of pages.folders) {
+  const children = [pages.rootFolderId];
+  for (const folder of getAllFolders(pages)) {
     children.push(...folder.children);
   }
 
-  let rootFolder = pages.folders.find(isRootFolder);
+  let rootFolder = getFolderById(pages, pages.rootFolderId);
   // Should never happen, but just in case.
   if (rootFolder === undefined) {
-    rootFolder = createRootFolder();
-    pages.folders.push(rootFolder);
+    rootFolder = {
+      id: pages.rootFolderId,
+      name: "Root",
+      slug: "",
+      children: [],
+    };
+    pages.folders.set(rootFolder.id, rootFolder);
   }
 
-  for (const folder of pages.folders) {
+  if (pages.pages.has(pages.homePageId)) {
+    let homePageRefCount = 0;
+    for (const folder of getAllFolders(pages)) {
+      for (const childId of folder.children) {
+        if (childId === pages.homePageId) {
+          homePageRefCount += 1;
+        }
+      }
+    }
+    if (rootFolder.children[0] !== pages.homePageId || homePageRefCount !== 1) {
+      cleanupChildRefsMutable(pages.homePageId, pages.folders);
+      rootFolder.children.unshift(pages.homePageId);
+      children.push(pages.homePageId);
+    }
+  }
+
+  for (const folder of getAllFolders(pages)) {
     // It's an orphan
     if (children.includes(folder.id) === false) {
       rootFolder.children.push(folder.id);
     }
   }
 
-  for (const page of pages.pages) {
+  for (const page of getAllPages(pages)) {
     // It's an orphan
     if (children.includes(page.id) === false) {
       rootFolder.children.push(page.id);
@@ -118,7 +130,7 @@ export const reparentOrphansMutable = (pages: Pages) => {
  */
 export const isSlugAvailable = (
   slug: string,
-  folders: Array<Folder>,
+  folders: Pages["folders"],
   parentFolderId: Folder["id"],
   // undefined folder id means new folder
   folderId?: Folder["id"]
@@ -127,8 +139,7 @@ export const isSlugAvailable = (
   if (slug === "") {
     return true;
   }
-  const foldersMap = new Map(folders.map((folder) => [folder.id, folder]));
-  const parentFolder = foldersMap.get(parentFolderId);
+  const parentFolder = folders.get(parentFolderId);
   // Should be impossible because at least root folder is always found.
   if (parentFolder === undefined) {
     return false;
@@ -136,7 +147,7 @@ export const isSlugAvailable = (
 
   return (
     parentFolder.children.some(
-      (id) => foldersMap.get(id)?.slug === slug && id !== folderId
+      (id) => folders.get(id)?.slug === slug && id !== folderId
     ) === false
   );
 };
@@ -154,7 +165,7 @@ export const isPathAvailable = ({
   pageId?: Page["id"];
 }) => {
   const map = new Map<Page["path"], Page>();
-  const allPages = [pages.homePage, ...pages.pages];
+  const allPages = getAllPages(pages);
   for (const page of allPages) {
     map.set(getPagePath(page.id, pages), page);
   }
@@ -175,21 +186,22 @@ export const isPathAvailable = ({
  * - Cleanup any potential references in other folders.
  */
 export const registerFolderChildMutable = (
-  folders: Array<Folder>,
+  pages: Pick<Pages, "folders" | "rootFolderId">,
   id: Page["id"] | Folder["id"],
   // In case we couldn't find the current folder during update for any reason,
   // we will always fall back to the root folder.
   parentFolderId?: Folder["id"]
 ) => {
+  const { folders } = pages;
   const parentFolder =
-    folders.find((folder) => folder.id === parentFolderId) ??
-    folders.find(isRootFolder);
+    (parentFolderId === undefined ? undefined : folders.get(parentFolderId)) ??
+    folders.get(pages.rootFolderId);
   cleanupChildRefsMutable(id, folders);
   parentFolder?.children.push(id);
 };
 
 export const reparentPageOrFolderMutable = (
-  folders: Folder[],
+  folders: Pages["folders"],
   pageOrFolderId: string,
   newFolderId: string,
   newPosition: number
@@ -204,13 +216,16 @@ export const reparentPageOrFolderMutable = (
     return;
   }
   const prevParent = findParentFolderByChildId(pageOrFolderId, folders);
-  const nextParent = folders.find((folder) => folder.id === newFolderId);
+  const nextParent = folders.get(newFolderId);
   if (prevParent === undefined || nextParent === undefined) {
     return;
   }
   // if parent is the same, we need to adjust the position
   // to account for the removal of the instance.
   const prevPosition = prevParent.children.indexOf(pageOrFolderId);
+  if (prevPosition === -1) {
+    return;
+  }
   if (prevParent.id === nextParent.id && prevPosition < newPosition) {
     newPosition -= 1;
   }
@@ -223,10 +238,10 @@ export const reparentPageOrFolderMutable = (
  */
 export const getAllChildrenAndSelf = (
   id: Folder["id"] | Page["id"],
-  folders: Array<Folder>,
+  folders: Pages["folders"],
   filter: "folder" | "page"
 ) => {
-  const child = folders.find((folder) => folder.id === id);
+  const child = folders.get(id);
   const children: Array<Folder["id"]> = [];
   const type = child === undefined ? "page" : "folder";
 
@@ -247,9 +262,12 @@ export const getAllChildrenAndSelf = (
  */
 export const deletePageMutable = (pageId: Page["id"], data: WebstudioData) => {
   const { pages } = data;
+  if (pageId === pages.homePageId) {
+    return;
+  }
   // deselect page before deleting to avoid flash of content
   if ($selectedPage.get()?.id === pageId) {
-    selectPage(pages.homePage.id);
+    selectPage(pages.homePageId);
   }
   const rootInstanceId = findPageByIdOrPath(pageId, pages)?.rootInstanceId;
   if (rootInstanceId !== undefined) {
@@ -258,7 +276,7 @@ export const deletePageMutable = (pageId: Page["id"], data: WebstudioData) => {
       getInstancePath([rootInstanceId], data.instances)
     );
   }
-  removeByMutable(pages.pages, (page) => page.id === pageId);
+  pages.pages.delete(pageId);
   cleanupChildRefsMutable(pageId, pages.folders);
 };
 
@@ -268,13 +286,27 @@ export const deletePageMutable = (pageId: Page["id"], data: WebstudioData) => {
  */
 export const deleteFolderWithChildrenMutable = (
   folderId: Folder["id"],
-  folders: Array<Folder>
+  pages: Pages
 ) => {
+  const { folders } = pages;
+  const folder = folders.get(folderId);
+  if (folder === undefined || folderId === pages.rootFolderId) {
+    return {
+      folderIds: [],
+      pageIds: [],
+    };
+  }
   const folderIds = getAllChildrenAndSelf(folderId, folders, "folder");
   const pageIds = getAllChildrenAndSelf(folderId, folders, "page");
+  if (pageIds.includes(pages.homePageId)) {
+    return {
+      folderIds: [],
+      pageIds: [],
+    };
+  }
   for (const folderId of folderIds) {
     cleanupChildRefsMutable(folderId, folders);
-    removeByMutable(folders, (folder) => folder.id === folderId);
+    folders.delete(folderId);
   }
 
   return {
@@ -314,7 +346,10 @@ export const $pageRootScope = computed(
 
 export const duplicatePage = (pageId: Page["id"]) => {
   const pages = $pages.get();
-  const currentFolder = findParentFolderByChildId(pageId, pages?.folders ?? []);
+  const currentFolder =
+    pages === undefined
+      ? undefined
+      : findParentFolderByChildId(pageId, pages.folders);
   if (currentFolder === undefined) {
     return;
   }
@@ -361,30 +396,22 @@ const insertFolderCopyMutable = ({
   source: { data: WebstudioData; folderId: Folder["id"] };
   target: { data: WebstudioData; parentFolderId: Folder["id"] };
 }): Folder["id"] | undefined => {
-  const sourceFolder = source.data.pages.folders.find(
-    (folder) => folder.id === source.folderId
-  );
+  const sourceFolder = source.data.pages.folders.get(source.folderId);
   if (sourceFolder === undefined) {
     return;
   }
 
-  const parentFolder = target.data.pages.folders.find(
-    (folder) => folder.id === target.parentFolderId
-  );
+  const parentFolder = target.data.pages.folders.get(target.parentFolderId);
   const usedNames = new Set<string>();
   const usedSlugs = new Set<string>();
   for (const childId of parentFolder?.children ?? []) {
-    const childFolder = target.data.pages.folders.find(
-      (folder) => folder.id === childId
-    );
+    const childFolder = target.data.pages.folders.get(childId);
     if (childFolder) {
       usedNames.add(childFolder.name);
       usedSlugs.add(childFolder.slug);
       continue;
     }
-    const childPage = target.data.pages.pages.find(
-      (page) => page.id === childId
-    );
+    const childPage = target.data.pages.pages.get(childId);
     if (childPage) {
       usedNames.add(childPage.name);
     }
@@ -400,10 +427,10 @@ const insertFolderCopyMutable = ({
   };
 
   // Add new folder to the folders array
-  target.data.pages.folders.push(newFolder);
+  target.data.pages.folders.set(newFolder.id, newFolder);
 
   // Register new folder in parent
-  for (const folder of target.data.pages.folders) {
+  for (const folder of getAllFolders(target.data.pages)) {
     if (folder.id === target.parentFolderId) {
       folder.children.push(newFolderId);
     }
@@ -411,9 +438,7 @@ const insertFolderCopyMutable = ({
 
   // Duplicate all children (pages and nested folders)
   for (const childId of sourceFolder.children) {
-    const childFolder = source.data.pages.folders.find(
-      (folder) => folder.id === childId
-    );
+    const childFolder = source.data.pages.folders.get(childId);
 
     if (childFolder) {
       // It's a nested folder - duplicate it recursively
@@ -435,10 +460,10 @@ const insertFolderCopyMutable = ({
 
 export const duplicateFolder = (folderId: Folder["id"]) => {
   const pages = $pages.get();
-  const currentFolder = findParentFolderByChildId(
-    folderId,
-    pages?.folders ?? []
-  );
+  const currentFolder =
+    pages === undefined
+      ? undefined
+      : findParentFolderByChildId(folderId, pages.folders);
   if (currentFolder === undefined) {
     return;
   }
@@ -452,8 +477,8 @@ export const duplicateFolder = (folderId: Folder["id"]) => {
   return newFolderId;
 };
 
-export const isFolder = (id: string, folders: Array<Folder>) => {
-  return folders.some((folder) => folder.id === id);
+export const isFolder = (id: string, folders: Pages["folders"]) => {
+  return folders.get(id) !== undefined;
 };
 
 type DropTarget = {
@@ -483,7 +508,8 @@ export const getStoredDropTarget = (
       ? undefined
       : selector.at(-dropTarget.afterLevel - 1);
   const pages = $pages.get();
-  const parentFolder = pages?.folders.find((item) => item.id === parentId);
+  const parentFolder =
+    parentId === undefined ? undefined : pages?.folders.get(parentId);
   let indexWithinChildren = 0;
   if (parentFolder) {
     const beforeIndex = parentFolder.children.indexOf(beforeId ?? "");
@@ -499,7 +525,8 @@ export const getStoredDropTarget = (
   }
 };
 
-export const canDrop = (dropTarget: DropTarget, folders: Folder[]) => {
+export const canDrop = (dropTarget: DropTarget, pages: Pages) => {
+  const { folders } = pages;
   // allow dropping only inside folders
   if (isFolder(dropTarget.parentId, folders) === false) {
     return false;
@@ -507,8 +534,8 @@ export const canDrop = (dropTarget: DropTarget, folders: Folder[]) => {
   // forbid dropping in the beginning of root folder
   // which is always used by home page
   if (
-    isRootFolder({ id: dropTarget.parentId }) &&
-    dropTarget.indexWithinChildren === 0
+    dropTarget.indexWithinChildren === 0 &&
+    dropTarget.parentId === pages.rootFolderId
   ) {
     return false;
   }
@@ -599,7 +626,7 @@ export const instantiateTemplateAsNewPage = (
   if (pages === undefined || template === undefined) {
     return;
   }
-  const rootFolder = pages.folders.find(isRootFolder);
+  const rootFolder = getFolderById(pages, pages.rootFolderId);
   const usedNames = new Set<string>();
   for (const childId of rootFolder?.children ?? []) {
     const page = findPageByIdOrPath(childId, pages);
@@ -616,7 +643,7 @@ export const instantiateTemplateAsNewPage = (
   return instantiateTemplate({
     templateId,
     overrides: { name, path: nameToPath(pages, template.name) },
-    folderId: ROOT_FOLDER_ID,
+    folderId: pages.rootFolderId,
   });
 };
 

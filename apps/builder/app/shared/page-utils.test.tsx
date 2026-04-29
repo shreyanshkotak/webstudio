@@ -4,6 +4,8 @@ import {
   ROOT_FOLDER_ID,
   ROOT_INSTANCE_ID,
   encodeDataVariableId,
+  getHomePage,
+  migratePages,
   type Instance,
   type WebstudioData,
 } from "@webstudio-is/sdk";
@@ -11,7 +13,7 @@ import {
   createDefaultPages,
   createRootFolder,
 } from "@webstudio-is/project-build";
-import { $project } from "./nano-states";
+import { $project } from "./sync/data-stores";
 import { insertPageCopyMutable } from "./page-utils";
 import {
   $,
@@ -25,6 +27,11 @@ import { nanoid } from "nanoid";
 
 const toMap = <T extends { id: string }>(list: T[]) =>
   new Map(list.map((item) => [item.id, item]));
+
+const getCopiedPages = (data: WebstudioData) =>
+  Array.from(data.pages.pages.values()).filter(
+    (page) => page.id !== data.pages.homePageId
+  );
 
 const getWebstudioDataStub = (
   data?: Partial<WebstudioData>
@@ -50,7 +57,7 @@ describe("insert page copy", () => {
       instances: toMap<Instance>([
         { type: "instance", id: "bodyId", component: "Body", children: [] },
       ]),
-      pages: {
+      pages: migratePages({
         meta: {},
         homePage: {
           id: "pageId",
@@ -62,14 +69,15 @@ describe("insert page copy", () => {
         },
         pages: [],
         folders: [createRootFolder(["pageId"])],
-      },
+      }),
     });
     insertPageCopyMutable({
       source: { data, pageId: "pageId" },
       target: { data, folderId: ROOT_FOLDER_ID },
     });
-    expect(data.pages.pages.length).toEqual(1);
-    const newPage = data.pages.pages[0];
+    const copiedPages = getCopiedPages(data);
+    expect(copiedPages.length).toEqual(1);
+    const newPage = copiedPages[0];
     expect(newPage).toEqual({
       id: expect.not.stringMatching("pageId"),
       name: "Name (1)",
@@ -92,7 +100,7 @@ describe("insert page copy", () => {
       instances: toMap<Instance>([
         { type: "instance", id: "bodyId", component: "Body", children: [] },
       ]),
-      pages: {
+      pages: migratePages({
         meta: {},
         homePage: {
           id: "homePageId",
@@ -113,14 +121,15 @@ describe("insert page copy", () => {
           },
         ],
         folders: [createRootFolder(["homePageId", "pageId"])],
-      },
+      }),
     });
     insertPageCopyMutable({
       source: { data, pageId: "pageId" },
       target: { data, folderId: ROOT_FOLDER_ID },
     });
-    expect(data.pages.pages.length).toEqual(2);
-    const newPage = data.pages.pages[1];
+    const copiedPages = getCopiedPages(data);
+    expect(copiedPages.length).toEqual(2);
+    const newPage = copiedPages[1];
     expect(newPage.path).toEqual("/copy-1/my-path");
   });
 
@@ -129,7 +138,7 @@ describe("insert page copy", () => {
       instances: toMap<Instance>([
         { type: "instance", id: "bodyId", component: "Body", children: [] },
       ]),
-      pages: {
+      pages: migratePages({
         meta: {},
         homePage: {
           id: "homePageId",
@@ -160,7 +169,7 @@ describe("insert page copy", () => {
           },
         ],
         folders: [createRootFolder(["homePageId", "page1Id", "page2Id"])],
-      },
+      }),
     });
     insertPageCopyMutable({
       source: { data, pageId: "page1Id" },
@@ -170,9 +179,10 @@ describe("insert page copy", () => {
       source: { data, pageId: "page2Id" },
       target: { data, folderId: ROOT_FOLDER_ID },
     });
-    expect(data.pages.pages.length).toEqual(4);
-    const newPage1 = data.pages.pages[2];
-    const newPage2 = data.pages.pages[3];
+    const copiedPages = getCopiedPages(data);
+    expect(copiedPages.length).toEqual(4);
+    const newPage1 = copiedPages[2];
+    const newPage2 = copiedPages[3];
     expect(newPage1.path).toEqual("/copy-1/my-path/*");
     expect(newPage2.path).toEqual("/copy-1/my-path/name*");
   });
@@ -182,7 +192,7 @@ describe("insert page copy", () => {
       instances: toMap<Instance>([
         { type: "instance", id: "bodyId", component: "Body", children: [] },
       ]),
-      pages: {
+      pages: migratePages({
         meta: {},
         homePage: {
           id: "homePageId",
@@ -211,7 +221,7 @@ describe("insert page copy", () => {
             children: ["pageId"],
           },
         ],
-      },
+      }),
     });
     insertPageCopyMutable({
       source: { data, pageId: "pageId" },
@@ -221,9 +231,10 @@ describe("insert page copy", () => {
       source: { data, pageId: "pageId" },
       target: { data, folderId: ROOT_FOLDER_ID },
     });
-    expect(data.pages.pages.length).toEqual(3);
-    const nestedPage = data.pages.pages[1];
-    const rootPage = data.pages.pages[2];
+    const copiedPages = getCopiedPages(data);
+    expect(copiedPages.length).toEqual(3);
+    const nestedPage = copiedPages[1];
+    const rootPage = copiedPages[2];
     expect(nestedPage.path).toEqual("/copy-1/my-path");
     expect(rootPage.path).toEqual("/my-path");
   });
@@ -233,7 +244,7 @@ describe("insert page copy", () => {
       instances: toMap<Instance>([
         { type: "instance", id: "bodyId", component: "Body", children: [] },
       ]),
-      pages: {
+      pages: migratePages({
         meta: {},
         homePage: {
           id: "homePageId",
@@ -262,14 +273,15 @@ describe("insert page copy", () => {
             children: ["pageId"],
           },
         ],
-      },
+      }),
     });
     insertPageCopyMutable({
       source: { data, pageId: "pageId" },
       target: { data, folderId: "folderId" },
     });
-    expect(data.pages.pages.length).toEqual(2);
-    const newPage = data.pages.pages[1];
+    const copiedPages = getCopiedPages(data);
+    expect(copiedPages.length).toEqual(2);
+    const newPage = copiedPages.find((page) => page.id !== "pageId")!;
     expect(newPage.path).toEqual("/copy-1/my-path");
   });
 
@@ -282,7 +294,7 @@ describe("insert page copy", () => {
     const variableIdentifier = encodeDataVariableId(variableId);
     const data = getWebstudioDataStub({
       ...dataWithoutPage,
-      pages: {
+      pages: migratePages({
         meta: {},
         homePage: {
           id: "pageId",
@@ -307,14 +319,15 @@ describe("insert page copy", () => {
         },
         pages: [],
         folders: [createRootFolder(["pageId"])],
-      },
+      }),
     });
     insertPageCopyMutable({
       source: { data, pageId: "pageId" },
       target: { data, folderId: ROOT_FOLDER_ID },
     });
-    expect(data.pages.pages.length).toEqual(1);
-    const newPage = data.pages.pages[0];
+    const copiedPages = getCopiedPages(data);
+    expect(copiedPages.length).toEqual(1);
+    const newPage = copiedPages[0];
     const [_oldVariableId, newVariableId] = data.dataSources.keys();
     const newVariableIdentifier = encodeDataVariableId(newVariableId);
     expect(newPage).toEqual({
@@ -345,7 +358,7 @@ describe("insert page copy", () => {
       instances: toMap<Instance>([
         { type: "instance", id: "bodyId", component: "Body", children: [] },
       ]),
-      pages: {
+      pages: migratePages({
         meta: {},
         homePage: {
           id: "pageId",
@@ -365,7 +378,7 @@ describe("insert page copy", () => {
             children: [],
           },
         ],
-      },
+      }),
     });
     insertPageCopyMutable({
       source: { data, pageId: "pageId" },
@@ -383,13 +396,14 @@ describe("insert page copy", () => {
       source: { data, pageId: "pageId" },
       target: { data, folderId: "folderId" },
     });
-    expect(data.pages.pages.length).toEqual(4);
+    const copiedPages = getCopiedPages(data);
+    expect(copiedPages.length).toEqual(4);
     // inside folder with conflict
-    expect(data.pages.pages[0].name).toEqual(`Name (1)`);
-    expect(data.pages.pages[1].name).toEqual(`Name (2)`);
+    expect(copiedPages[0].name).toEqual(`Name (1)`);
+    expect(copiedPages[1].name).toEqual(`Name (2)`);
     // inside folder without conflict
-    expect(data.pages.pages[2].name).toEqual(`Name`);
-    expect(data.pages.pages[3].name).toEqual(`Name (1)`);
+    expect(copiedPages[2].name).toEqual(`Name`);
+    expect(copiedPages[3].name).toEqual(`Name (1)`);
   });
 
   test("preserve global variables when duplicate page", () => {
@@ -408,7 +422,7 @@ describe("insert page copy", () => {
     };
     data.instances.delete(ROOT_INSTANCE_ID);
     insertPageCopyMutable({
-      source: { data, pageId: data.pages.homePage.id },
+      source: { data, pageId: data.pages.homePageId },
       target: { data, folderId: ROOT_FOLDER_ID },
     });
     expect(data.dataSources.size).toEqual(1);
@@ -456,7 +470,7 @@ describe("insert page copy", () => {
     };
     targetData.instances.delete(ROOT_INSTANCE_ID);
     insertPageCopyMutable({
-      source: { data: sourceData, pageId: sourceData.pages.homePage.id },
+      source: { data: sourceData, pageId: sourceData.pages.homePageId },
       target: { data: targetData, folderId: ROOT_FOLDER_ID },
     });
     expect(targetData.dataSources.size).toEqual(1);
@@ -497,7 +511,7 @@ describe("insert page copy", () => {
       ...renderData(<$.Body ws:id="anotherBodyId"></$.Body>, nanoid),
     };
     insertPageCopyMutable({
-      source: { data: sourceData, pageId: sourceData.pages.homePage.id },
+      source: { data: sourceData, pageId: sourceData.pages.homePageId },
       target: { data: targetData, folderId: ROOT_FOLDER_ID },
     });
     expect(targetData.dataSources.size).toEqual(1);
@@ -528,10 +542,11 @@ describe("insert page copy", () => {
       }),
       ...dataWithoutPages,
     };
-    data.pages.homePage.title = `${encodeDataVariableId(pageSystemVariableId)}`;
-    data.pages.homePage.meta.description = `${encodeDataVariableId(pageSystemVariableId)}`;
+    const homePage = getHomePage(data.pages);
+    homePage.title = `${encodeDataVariableId(pageSystemVariableId)}`;
+    homePage.meta.description = `${encodeDataVariableId(pageSystemVariableId)}`;
     insertPageCopyMutable({
-      source: { data, pageId: data.pages.homePage.id },
+      source: { data, pageId: data.pages.homePageId },
       target: { data, folderId: ROOT_FOLDER_ID },
     });
     expect(data.dataSources.size).toEqual(1);
@@ -545,7 +560,8 @@ describe("insert page copy", () => {
     expect(newBox?.children).toEqual([
       { type: "expression", value: "$ws$system" },
     ]);
-    expect(data.pages.pages[0].title).toEqual(`$ws$system`);
-    expect(data.pages.pages[0].meta.description).toEqual(`$ws$system`);
+    const copiedPage = getCopiedPages(data)[0];
+    expect(copiedPage.title).toEqual(`$ws$system`);
+    expect(copiedPage.meta.description).toEqual(`$ws$system`);
   });
 });

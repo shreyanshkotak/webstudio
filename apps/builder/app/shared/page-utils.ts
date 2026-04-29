@@ -3,6 +3,7 @@ import {
   decodeDataSourceVariable,
   encodeDataSourceVariable,
   findPageByIdOrPath,
+  getFolderById,
   getPagePath,
   transpileExpression,
   type Folder,
@@ -23,7 +24,7 @@ import {
   restoreExpressionVariables,
   unsetExpressionVariables,
 } from "./data-variables";
-import { $project } from "./nano-states";
+import { $project } from "./sync/data-stores";
 import type { ConflictResolution } from "./token-conflict-dialog";
 
 const deduplicateName = (
@@ -34,7 +35,7 @@ const deduplicateName = (
   const { name = pageName, copyNumber } =
     // extract a number from "name (copyNumber)"
     pageName.match(/^(?<name>.+) \((?<copyNumber>\d+)\)$/)?.groups ?? {};
-  const folder = pages.folders.find((folder) => folder.id === folderId);
+  const folder = getFolderById(pages, folderId);
   const usedNames = new Set<string>();
   for (const pageId of folder?.children ?? []) {
     const page = findPageByIdOrPath(pageId, pages);
@@ -246,12 +247,8 @@ export const insertPageFromTemplateMutable = ({
     newPage.meta,
     copied.transformExpression
   );
-  target.data.pages.pages.push(newPage);
-  for (const folder of target.data.pages.folders) {
-    if (folder.id === target.folderId) {
-      folder.children.push(newPage.id);
-    }
-  }
+  target.data.pages.pages.set(newPage.id, newPage);
+  target.data.pages.folders.get(target.folderId)?.children.push(newPage.id);
   return newPage.id;
 };
 
@@ -292,11 +289,7 @@ export const insertPageCopyMutable = ({
     newPage.meta,
     copied.transformExpression
   );
-  target.data.pages.pages.push(newPage);
-  for (const folder of target.data.pages.folders) {
-    if (folder.id === target.folderId) {
-      folder.children.push(newPage.id);
-    }
-  }
+  target.data.pages.pages.set(newPage.id, newPage);
+  target.data.pages.folders.get(target.folderId)?.children.push(newPage.id);
   return newPage.id;
 };

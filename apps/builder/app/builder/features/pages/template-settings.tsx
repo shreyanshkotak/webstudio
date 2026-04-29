@@ -31,15 +31,10 @@ import {
   Text,
 } from "@webstudio-is/design-system";
 import { CopyIcon, TrashIcon } from "@webstudio-is/icons";
-import {
-  $instances,
-  $pages,
-  $isDesignMode,
-  $assets,
-  $publishedOrigin,
-} from "~/shared/nano-states";
+import { $isDesignMode, $publishedOrigin } from "~/shared/nano-states";
+import { $assets, $instances, $pages } from "~/shared/sync/data-stores";
 import { serverSyncStore } from "~/shared/sync/sync-stores";
-import { selectInstance } from "~/shared/awareness";
+import { selectInstance } from "~/shared/nano-states";
 import { useEffectEvent } from "~/shared/hook-utils/effect-event";
 import { useUnmount } from "~/shared/hook-utils/use-mount";
 import {

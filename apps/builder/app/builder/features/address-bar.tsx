@@ -34,8 +34,8 @@ import {
   matchPathnamePattern,
   tokenizePathnamePattern,
 } from "~/builder/shared/url-pattern";
-import { $selectedPage, $selectedPagePath } from "~/shared/awareness";
 import { isPage } from "@webstudio-is/sdk";
+import { $selectedPage, $selectedPagePath } from "~/shared/nano-states";
 import { $currentSystem, updateCurrentSystem } from "~/shared/system";
 
 const $selectedPageHistory = computed($selectedPage, (page): string[] =>
